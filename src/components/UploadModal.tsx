@@ -62,9 +62,9 @@ export function UploadModal({ open, onOpenChange, onImportComplete }: UploadModa
 
       // Refresh activities list
       onImportComplete();
-    } catch (error: any) {
+    } catch (error) {
       setStage("complete");
-      setErrors([`Failed to import: ${error.message || "Unknown error"}`]);
+      setErrors([`Failed to import: ${error instanceof Error ? error.message : "Unknown error"}`]);
     }
 
     // Clear file input

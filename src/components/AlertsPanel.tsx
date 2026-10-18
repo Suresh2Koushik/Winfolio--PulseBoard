@@ -13,7 +13,7 @@ import {
     Zap,
     Info
 } from "lucide-react";
-import { format, differenceInDays, startOfWeek, isAfter } from "date-fns";
+import { format, differenceInDays, startOfWeek, isAfter, parseISO } from "date-fns";
 import { CheckIn, Goal, ActionItem, RiskLevel } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -113,7 +113,7 @@ function AlertItem({
         },
     };
 
-    const typeIcons: Record<string, any> = {
+    const typeIcons: Record<string, React.ElementType> = {
         check_in_due: Calendar,
         action_item_due: Clock,
         goal_deadline: Target,
@@ -144,7 +144,7 @@ function AlertItem({
                     <div className="flex items-center gap-1.5 mt-2">
                         <div className="h-1 w-1 rounded-full bg-muted-foreground/30" />
                         <span className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">
-                            Deadline: {format(new Date(alert.dueDate), 'MMM d')}
+                            Deadline: {format(parseISO(alert.dueDate), 'MMM d')}
                         </span>
                     </div>
                 )}
@@ -169,7 +169,7 @@ function generateAlerts(checkIns: CheckIn[], goals: Goal[], actionItems: ActionI
 
     // 1. Weekly Check-In
     const currentWeekStart = startOfWeek(today, { weekStartsOn: 1 });
-    const hasCurrentWeekCheckIn = checkIns.some(c => new Date(c.weekStart) >= currentWeekStart);
+    const hasCurrentWeekCheckIn = checkIns.some(c => parseISO(c.weekStart) >= currentWeekStart);
 
     if (!hasCurrentWeekCheckIn && today.getDay() >= 4) {
         alerts.push({
@@ -184,7 +184,7 @@ function generateAlerts(checkIns: CheckIn[], goals: Goal[], actionItems: ActionI
     // 2. Goals
     goals.forEach(goal => {
         if (goal.status === 'completed') return;
-        const daysUntilDeadline = differenceInDays(new Date(goal.endDate), today);
+        const daysUntilDeadline = differenceInDays(parseISO(goal.endDate), today);
 
         if (daysUntilDeadline < 0) {
             alerts.push({
@@ -223,7 +223,7 @@ function generateAlerts(checkIns: CheckIn[], goals: Goal[], actionItems: ActionI
     // 3. Action Items
     actionItems.forEach(item => {
         if (item.status === 'completed' || !item.dueDate) return;
-        const daysUntilDue = differenceInDays(new Date(item.dueDate), today);
+        const daysUntilDue = differenceInDays(parseISO(item.dueDate), today);
 
         if (daysUntilDue < 0) {
             alerts.push({

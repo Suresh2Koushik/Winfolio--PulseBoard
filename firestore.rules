@@ -118,13 +118,13 @@ service cloud.firestore {
 
       allow get: if signedIn() && (
         request.auth.uid == userId
-        || resource.data.managerId == request.auth.uid
+        || (resource.data.managerId == request.auth.uid && isManagerOrAdmin())
         || isAdmin()
       );
 
       // Managers may list their direct reports; admins may list everyone.
       allow list: if signedIn() && (
-        resource.data.managerId == request.auth.uid || isAdmin()
+        (resource.data.managerId == request.auth.uid && isManagerOrAdmin()) || isAdmin()
       );
 
       // Self-registration always starts as an employee with no manager.
@@ -237,7 +237,7 @@ service cloud.firestore {
 
       allow read: if signedIn() && (
         resource.data.userId == request.auth.uid
-        || resource.data.managerId == request.auth.uid
+        || (resource.data.managerId == request.auth.uid && isManagerOrAdmin())
         || isAdmin()
       );
       allow create: if signedIn() && incoming().userId == uid()
@@ -267,7 +267,7 @@ service cloud.firestore {
 
       allow read: if signedIn() && (
         resource.data.userId == request.auth.uid
-        || resource.data.managerId == request.auth.uid
+        || (resource.data.managerId == request.auth.uid && isManagerOrAdmin())
         || isAdmin()
       );
       allow create: if signedIn() && incoming().userId == uid()

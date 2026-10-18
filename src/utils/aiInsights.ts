@@ -1,5 +1,5 @@
 import { CheckIn, Goal, PerformanceSummary } from '@/types';
-import { format, differenceInDays } from 'date-fns';
+import { format, differenceInDays, parseISO } from 'date-fns';
 
 interface AIInsightInput {
     checkIns: CheckIn[];
@@ -14,7 +14,7 @@ export function generatePerformanceInsights(input: AIInsightInput): Omit<Perform
 
     // Filter data for the period
     const periodCheckIns = checkIns.filter(c => {
-        const date = new Date(c.weekStart);
+        const date = parseISO(c.weekStart);
         return date >= periodStart && date <= periodEnd;
     });
 
@@ -199,7 +199,7 @@ function generateRisks(
     }
 
     // Overdue goals
-    const overdueGoals = goalsAtRisk.filter(g => new Date(g.endDate) < new Date());
+    const overdueGoals = goalsAtRisk.filter(g => parseISO(g.endDate) < new Date());
     if (overdueGoals.length > 0) {
         risks.push(`${overdueGoals.length} goal${overdueGoals.length !== 1 ? 's are' : ' is'} past the deadline`);
     }

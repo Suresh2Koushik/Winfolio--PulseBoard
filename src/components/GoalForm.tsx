@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,8 +49,8 @@ export function GoalForm({ open, onOpenChange, onSave, editGoal }: GoalFormProps
             setPriority(editGoal.priority);
             setStatus(editGoal.status);
             setProgress(editGoal.progress);
-            setStartDate(new Date(editGoal.startDate));
-            setEndDate(new Date(editGoal.endDate));
+            setStartDate(parseISO(editGoal.startDate));
+            setEndDate(parseISO(editGoal.endDate));
         } else {
             resetForm();
         }

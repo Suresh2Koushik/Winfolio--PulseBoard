@@ -4,7 +4,8 @@ import { ActivityCard } from "@/components/ActivityCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { format, startOfWeek, addDays } from "date-fns";
+import { format, startOfWeek, addDays, parseISO, setWeek } from "date-fns";
+import { getWeekNumber } from "@/utils/categorization";
 import { CATEGORIES } from "@/types";
 
 interface WeeklyViewProps {
@@ -16,12 +17,12 @@ interface WeeklyViewProps {
 export function WeeklyView({ activities, onEdit, onDelete }: WeeklyViewProps) {
   const [selectedWeek, setSelectedWeek] = useState(() => {
     const now = new Date();
-    return `${now.getFullYear()}-W${String(Math.ceil(now.getDate() / 7)).padStart(2, "0")}`;
+    return `${now.getFullYear()}-W${String(getWeekNumber(now)).padStart(2, "0")}`;
   });
   const [filterCategory, setFilterCategory] = useState<CategoryType | "All">("All");
   const [filterStatus, setFilterStatus] = useState<ActivityStatus | "All">("All");
 
-  const weeks = Array.from({ length: 52 }, (_, i) => {
+  const weeks = Array.from({ length: 53 }, (_, i) => {
     const year = new Date().getFullYear();
     return `${year}-W${String(i + 1).padStart(2, "0")}`;
   });
@@ -30,7 +31,7 @@ export function WeeklyView({ activities, onEdit, onDelete }: WeeklyViewProps) {
   const weekNumber = parseInt(weekStr);
 
   const filteredActivities = activities.filter((activity) => {
-    const activityYear = new Date(activity.date).getFullYear();
+    const activityYear = parseISO(activity.date).getFullYear();
     const matchesWeek = activity.weekNumber === weekNumber && activityYear === parseInt(year);
     const matchesCategory = filterCategory === "All" || activity.category === filterCategory;
     const matchesStatus = filterStatus === "All" || activity.status === filterStatus;
@@ -38,13 +39,14 @@ export function WeeklyView({ activities, onEdit, onDelete }: WeeklyViewProps) {
   });
 
   const groupedByDay = filteredActivities.reduce((acc, activity) => {
-    const day = format(new Date(activity.date), "yyyy-MM-dd");
+    const day = format(parseISO(activity.date), "yyyy-MM-dd");
     if (!acc[day]) acc[day] = [];
     acc[day].push(activity);
     return acc;
   }, {} as Record<string, Activity[]>);
 
-  const weekStart = startOfWeek(new Date(parseInt(year), 0, (weekNumber - 1) * 7 + 1), { weekStartsOn: 1 });
+  // Same week numbering as getWeekNumber (Monday start), so days line up with stored weekNumber.
+  const weekStart = startOfWeek(setWeek(new Date(parseInt(year), 6, 1), weekNumber, { weekStartsOn: 1 }), { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
   return (

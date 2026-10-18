@@ -1,13 +1,13 @@
 import { Activity } from "@/types";
 import { storage } from "@/lib/firebase";
-import { getStorage, ref, getDownloadURL } from "firebase/storage";
+import { ref, getDownloadURL } from "firebase/storage";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CATEGORIES } from "@/types";
 import { useUserData } from "@/hooks/useUserData";
 import { Pencil, Trash2, Calendar, Award, FileText, Download, Users } from "lucide-react";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -28,12 +28,25 @@ export function ActivityCard({ activity, onEdit, onDelete }: ActivityCardProps) 
   const handleDownloadAttachment = async () => {
     if (!activity.attachmentUrl) return;
 
+    // Open the tab synchronously so pop-up blockers allow it, then point it at the file.
+    // ('noopener' would make window.open return null, so detach the opener manually.)
+    const tab = window.open('', '_blank');
+    if (tab) tab.opener = null;
     try {
-      const storageRef = ref(storage, activity.attachmentUrl);
-      const url = await getDownloadURL(storageRef);
-      window.open(url, '_blank');
-      toast.success("Opening attachment...");
-    } catch (error: any) {
+      const value = activity.attachmentUrl;
+      let url: string;
+      if (value.startsWith('activities/')) {
+        url = await getDownloadURL(ref(storage, value));
+      } else {
+        // Imported rows may carry an external link; only allow http(s).
+        const parsed = new URL(value);
+        if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') throw new Error('Unsupported link');
+        url = parsed.toString();
+      }
+      if (tab) tab.location.href = url;
+      else window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      tab?.close();
       toast.error("Failed to access attachment");
       console.error("Download error:", error);
     }
@@ -53,7 +66,7 @@ export function ActivityCard({ activity, onEdit, onDelete }: ActivityCardProps) 
               </h3>
               <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                 <Calendar className="h-3 w-3" />
-                <span>{format(new Date(activity.date), "MMM d, yyyy")}</span>
+                <span>{format(parseISO(activity.date), "MMM d, yyyy")}</span>
                 <span className="opacity-30">•</span>
                 <span>Week {activity.weekNumber}</span>
               </div>

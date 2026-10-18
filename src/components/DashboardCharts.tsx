@@ -14,7 +14,9 @@ import {
   Cell,
   AreaChart,
   Area,
+  type TooltipProps,
 } from "recharts";
+import { parseISO } from "date-fns";
 
 const COLORS = [
   "hsl(252, 87%, 58%)",  // primary purple
@@ -51,7 +53,7 @@ export function DashboardCharts({ activities, goalStats }: DashboardChartsProps)
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekEnd.getDate() + 6);
       const count = activities.filter((a) => {
-        const ad = new Date(a.date);
+        const ad = parseISO(a.date);
         return ad >= weekStart && ad <= weekEnd;
       }).length;
       const label = `W${Math.ceil((weekStart.getDate() + weekStart.getDay()) / 7)}`;
@@ -82,7 +84,7 @@ export function DashboardCharts({ activities, goalStats }: DashboardChartsProps)
     ].filter((d) => d.value > 0);
   }, [goalStats]);
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
     if (active && payload && payload.length) {
       return (
         <div className="rounded-lg border bg-background/95 backdrop-blur-sm p-3 shadow-xl">
@@ -94,7 +96,7 @@ export function DashboardCharts({ activities, goalStats }: DashboardChartsProps)
     return null;
   };
 
-  const PieTooltip = ({ active, payload }: any) => {
+  const PieTooltip = ({ active, payload }: TooltipProps<number, string>) => {
     if (active && payload && payload.length) {
       return (
         <div className="rounded-lg border bg-background/95 backdrop-blur-sm p-3 shadow-xl">

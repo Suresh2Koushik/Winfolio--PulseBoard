@@ -7,7 +7,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GoalForm } from "@/components/GoalForm";
 import { GoalCard } from "@/components/GoalCard";
-import { UserMenu } from "@/components/UserMenu";
 import { useGoals } from "@/hooks/useGoals";
 import { Goal, GoalStatus, GoalPriority } from "@/types";
 
@@ -57,25 +56,22 @@ export default function Goals() {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
+            <div className="flex items-center justify-center py-24">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20">
-            <div className="container mx-auto p-6 max-w-6xl">
-                <header className="mb-8 flex justify-between items-start">
-                    <div>
-                        <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                            Goals & Impact
-                        </h1>
-                        <p className="text-muted-foreground">
-                            Track your objectives and measure your progress
-                        </p>
-                    </div>
-                    <UserMenu />
+        <div className="bg-gradient-to-br from-background via-background to-secondary/20">
+            <div className="p-4 md:p-6 max-w-6xl mx-auto">
+                <header className="mb-8">
+                    <h1 className="text-2xl md:text-3xl font-bold mb-1 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                        Goals & Impact
+                    </h1>
+                    <p className="text-muted-foreground text-sm">
+                        Track your objectives and measure your progress
+                    </p>
                 </header>
 
                 {/* Stats Cards */}

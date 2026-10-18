@@ -312,6 +312,19 @@ describe("check-ins and goals: manager visibility", () => {
     await assertFails(getDocs(query(collection(asUser(MGR2), "checkIns"), where("managerId", "==", MGR))));
   });
 
+  it("a demoted manager immediately loses access to former reports", async () => {
+    let id = "";
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      const r = await addDoc(collection(db, "checkIns"), { ...validCheckIn(EMP, MGR), createdAt: Timestamp.now() });
+      id = r.id;
+      await updateDoc(doc(db, "users", MGR), { role: "employee" });
+    });
+    await assertFails(getDoc(doc(asUser(MGR), "checkIns", id)));
+    await assertFails(getDoc(doc(asUser(MGR), "users", EMP)));
+    await assertFails(getDocs(query(collection(asUser(MGR), "users"), where("managerId", "==", MGR))));
+  });
+
   it("manager cannot edit a report's check-in", async () => {
     let id = "";
     await env.withSecurityRulesDisabled(async (ctx) => {

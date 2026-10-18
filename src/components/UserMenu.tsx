@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { User, Shield, LogOut, CheckSquare, Target, LayoutDashboard, Settings } from "lucide-react";
+import { UserCog, Shield, LogOut, CheckSquare, Target, LayoutDashboard, Settings } from "lucide-react";
 
 export function UserMenu() {
   const { user, userProfile, userRole, signOut } = useAuth();
@@ -31,7 +31,7 @@ export function UserMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-10 w-10 rounded-full group">
+        <Button variant="ghost" aria-label="Account menu" className="relative h-10 w-10 rounded-full group">
           <Avatar className="border-2 border-transparent group-hover:border-primary/50 transition-all">
             <AvatarImage src={userProfile?.avatarUrl || undefined} alt={userProfile?.fullName || "User"} />
             <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white font-bold">
@@ -67,6 +67,10 @@ export function UserMenu() {
           <DropdownMenuItem onClick={() => navigate("/goals")} className="cursor-pointer gap-2 py-2">
             <Target className="h-4 w-4 text-muted-foreground" />
             My Goals
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => navigate("/onboard")} className="cursor-pointer gap-2 py-2">
+            <UserCog className="h-4 w-4 text-muted-foreground" />
+            Edit profile
           </DropdownMenuItem>
         </div>
 

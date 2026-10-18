@@ -5,10 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CheckInForm } from "@/components/CheckInForm";
 import { CheckInCard } from "@/components/CheckInCard";
-import { UserMenu } from "@/components/UserMenu";
 import { useCheckIns } from "@/hooks/useCheckIns";
 import { useGoals } from "@/hooks/useGoals";
 import { CheckIn } from "@/types";
+import { parseISO } from "date-fns";
 
 export default function CheckIns() {
     const { checkIns, loading, addCheckIn, updateCheckIn, deleteCheckIn } = useCheckIns();
@@ -47,7 +47,7 @@ export default function CheckIns() {
 
     // Group by month
     const groupedByMonth = filteredCheckIns.reduce((acc, checkIn) => {
-        const monthKey = new Date(checkIn.weekStart).toLocaleDateString('en-US', {
+        const monthKey = parseISO(checkIn.weekStart).toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'long'
         });
@@ -58,25 +58,22 @@ export default function CheckIns() {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
+            <div className="flex items-center justify-center py-24">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20">
-            <div className="container mx-auto p-6 max-w-5xl">
-                <header className="mb-8 flex justify-between items-start">
-                    <div>
-                        <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                            Weekly Check-Ins
-                        </h1>
-                        <p className="text-muted-foreground">
-                            Track your weekly progress and share updates with your manager
-                        </p>
-                    </div>
-                    <UserMenu />
+        <div className="bg-gradient-to-br from-background via-background to-secondary/20">
+            <div className="p-4 md:p-6 max-w-5xl mx-auto">
+                <header className="mb-8">
+                    <h1 className="text-2xl md:text-3xl font-bold mb-1 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                        Weekly Check-Ins
+                    </h1>
+                    <p className="text-muted-foreground text-sm">
+                        Track your weekly progress and share updates with your manager
+                    </p>
                 </header>
 
                 <div className="flex flex-col sm:flex-row gap-3 mb-6">
@@ -138,8 +135,9 @@ export default function CheckIns() {
                     <TabsContent value="recent" className="space-y-4">
                         {filteredCheckIns
                             .filter((c) => {
-                                const thisMonth = new Date().getMonth();
-                                return new Date(c.weekStart).getMonth() === thisMonth;
+                                const now = new Date();
+                                const start = parseISO(c.weekStart);
+                                return start.getMonth() === now.getMonth() && start.getFullYear() === now.getFullYear();
                             })
                             .map((checkIn) => (
                                 <CheckInCard

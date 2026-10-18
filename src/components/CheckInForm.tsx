@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { format, startOfWeek, endOfWeek, addDays } from "date-fns";
+import { format, startOfWeek, endOfWeek, addDays, parseISO } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,7 +34,7 @@ export function CheckInForm({ open, onOpenChange, onSave, editCheckIn }: CheckIn
 
     useEffect(() => {
         if (editCheckIn) {
-            setWeekStart(new Date(editCheckIn.weekStart));
+            setWeekStart(parseISO(editCheckIn.weekStart));
             setWorkSummary(editCheckIn.workSummary);
             setAchievements(editCheckIn.achievements || "");
             setBlockers(editCheckIn.blockers || "");

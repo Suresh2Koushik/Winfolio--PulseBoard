@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import {
     CheckIn,
     Goal,
@@ -12,7 +12,8 @@ import {
 // Add type definition for jspdf-autotable
 declare module 'jspdf' {
     interface jsPDF {
-        autoTable: (options: any) => jsPDF;
+        autoTable: (options: import("jspdf-autotable").UserOptions) => jsPDF;
+        lastAutoTable: { finalY: number };
     }
 }
 
@@ -88,7 +89,7 @@ export const exportPerformanceReport = (
         doc.text('Recent Weekly Check-Ins', 20, currentY);
 
         const tableData = checkIns.map(c => [
-            `${format(new Date(c.weekStart), 'MMM d')} - ${format(new Date(c.weekEnd), 'MMM d')}`,
+            `${format(parseISO(c.weekStart), 'MMM d')} - ${format(parseISO(c.weekEnd), 'MMM d')}`,
             c.workSummary,
             c.achievements || '-',
             c.blockers ? 'Has Blockers' : 'Completed'
@@ -99,7 +100,7 @@ export const exportPerformanceReport = (
             head: [['Week', 'Summary', 'Achievements', 'Status']],
             body: tableData,
             theme: 'striped',
-            headStyles: { fillStyle: [31, 41, 55] },
+            headStyles: { fillColor: [31, 41, 55] },
             columnStyles: {
                 0: { cellWidth: 35 },
                 1: { cellWidth: 'auto' },
@@ -108,7 +109,7 @@ export const exportPerformanceReport = (
             }
         });
 
-        currentY = (doc as any).lastAutoTable.finalY + 20;
+        currentY = doc.lastAutoTable.finalY + 20;
     }
 
     // Goals Table
@@ -127,7 +128,7 @@ export const exportPerformanceReport = (
             g.title,
             g.status.replace('_', ' '),
             `${g.progress}%`,
-            format(new Date(g.endDate), 'MMM d, yyyy')
+            format(parseISO(g.endDate), 'MMM d, yyyy')
         ]);
 
         doc.autoTable({
@@ -135,7 +136,7 @@ export const exportPerformanceReport = (
             head: [['Goal', 'Status', 'Progress', 'Deadline']],
             body: goalData,
             theme: 'grid',
-            headStyles: { fillStyle: [79, 70, 229] }
+            headStyles: { fillColor: [79, 70, 229] }
         });
     }
 
@@ -167,7 +168,7 @@ export const exportActivityHistory = (activities: Activity[], userName: string) 
     doc.text(`Date: ${dateStr}`, 20, 35);
 
     const tableData = activities.map(a => [
-        format(new Date(a.date), 'MMM d, yyyy'),
+        format(parseISO(a.date), 'MMM d, yyyy'),
         a.title,
         a.category,
         a.status,
@@ -178,7 +179,7 @@ export const exportActivityHistory = (activities: Activity[], userName: string) 
         startY: 45,
         head: [['Date', 'Title', 'Category', 'Status', 'Teams']],
         body: tableData,
-        headStyles: { fillStyle: [31, 41, 55] }
+        headStyles: { fillColor: [31, 41, 55] }
     });
 
     doc.save(`Activity_History_${userName.replace(' ', '_')}_${dateStr}.pdf`);

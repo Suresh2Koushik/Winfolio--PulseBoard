@@ -15,4 +15,17 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Keep large, rarely-changing libraries in their own cacheable chunks.
+        manualChunks: {
+          firebase: ["firebase/app", "firebase/auth", "firebase/firestore", "firebase/storage"],
+          charts: ["recharts"],
+          spreadsheet: ["xlsx"],
+          pdf: ["jspdf", "jspdf-autotable"],
+        },
+      },
+    },
+  },
 }));

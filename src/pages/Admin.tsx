@@ -1,22 +1,25 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   collection,
-  query,
+  doc,
+  getCountFromServer,
   getDocs,
+  query,
+  serverTimestamp,
   where,
-  orderBy,
-  limit,
-  Timestamp
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAuditLog } from "@/hooks/useAuditLog";
+import { UserRole } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Users,
   Activity,
@@ -27,11 +30,11 @@ import {
   Loader2,
   ShieldCheck,
   Calendar,
-  ChevronLeft
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
-import { format } from "date-fns";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
+import { format, startOfDay, subDays } from "date-fns";
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
 import { cn } from "@/lib/utils";
 import { exportUserListToCSV } from "@/utils/exportUserData";
 
@@ -40,170 +43,254 @@ interface UserData {
   email: string;
   fullName: string;
   avatarUrl?: string;
-  role: string;
+  role: UserRole;
   team?: string;
+  managerId?: string | null;
   createdAt: string;
-  activityCount: number;
+  activityCount?: number;
 }
 
 interface Analytics {
   totalUsers: number;
-  activeUsers: number; // Signed in last 30 days
+  newUsers30d: number;
   totalActivities: number;
   totalCheckIns: number;
   signupTimeline: Array<{ date: string; count: number }>;
 }
 
+const NO_MANAGER = "__none__";
+
 export default function Admin() {
-  const { userProfile, userRole } = useAuth();
-  const navigate = useNavigate();
+  const { user: currentUser } = useAuth();
+  const { logAction } = useAuditLog();
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [users, setUsers] = useState<UserData[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [savingId, setSavingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (userRole === 'admin') {
-      setIsAdmin(true);
-      fetchData();
-    } else if (userProfile) {
-      toast.error("Access denied. Admin privileges required.");
-      navigate("/dashboard");
-    }
-  }, [userRole, userProfile, navigate]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      await Promise.all([fetchAnalytics(), fetchUsers()]);
+      const [usersSnapshot, activitiesCount, checkInsCount] = await Promise.all([
+        getDocs(collection(db, "users")),
+        getCountFromServer(collection(db, "activities")),
+        getCountFromServer(collection(db, "checkIns")),
+      ]);
+
+      const userData: UserData[] = usersSnapshot.docs
+        .map((d) => {
+          const data = d.data();
+          return {
+            id: d.id,
+            email: data.email || "",
+            fullName: data.fullName || data.email || "User",
+            avatarUrl: data.avatarUrl || undefined,
+            role: (data.role || "employee") as UserRole,
+            team: data.team || undefined,
+            managerId: data.managerId ?? null,
+            createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date(0).toISOString(),
+          };
+        })
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+      // Per-user activity counts use server-side aggregation (no document downloads).
+      const counts = await Promise.all(
+        userData.map((u) =>
+          getCountFromServer(query(collection(db, "activities"), where("userId", "==", u.id)))
+            .then((r) => r.data().count)
+            .catch(() => undefined)
+        )
+      );
+      userData.forEach((u, i) => { u.activityCount = counts[i]; });
+
+      // Daily signups for the last 30 days, oldest first.
+      const since = startOfDay(subDays(new Date(), 29));
+      const perDay = new Map<string, number>();
+      for (let i = 0; i < 30; i++) perDay.set(format(subDays(new Date(), 29 - i), "MMM dd"), 0);
+      userData.forEach((u) => {
+        const created = new Date(u.createdAt);
+        if (created >= since) {
+          const key = format(created, "MMM dd");
+          perDay.set(key, (perDay.get(key) || 0) + 1);
+        }
+      });
+
+      setUsers(userData);
+      setAnalytics({
+        totalUsers: userData.length,
+        newUsers30d: userData.filter((u) => new Date(u.createdAt) >= since).length,
+        totalActivities: activitiesCount.data().count,
+        totalCheckIns: checkInsCount.data().count,
+        signupTimeline: Array.from(perDay, ([date, count]) => ({ date, count })),
+      });
     } catch (error) {
       console.error("Admin fetch error:", error);
       toast.error("Failed to load admin data");
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const managers = useMemo(
+    () => users.filter((u) => u.role === "manager" || u.role === "admin"),
+    [users]
+  );
+  const nameById = useMemo(() => new Map(users.map((u) => [u.id, u.fullName])), [users]);
+
+  /**
+   * Changing a role also maintains the manager directory (what employees pick from)
+   * and, on demotion, detaches the person's reports so nobody points at a non-manager.
+   */
+  const changeRole = async (target: UserData, role: UserRole) => {
+    if (role === target.role) return;
+    if (target.id === currentUser?.uid) {
+      toast.error("You can't change your own role. Ask another admin.");
+      return;
+    }
+    const reports = users.filter((u) => u.managerId === target.id);
+    const demoting = role === "employee";
+    if (demoting && reports.length > 0 &&
+      !confirm(`${target.fullName} manages ${reports.length} people. They will be unassigned. Continue?`)) {
+      return;
+    }
+
+    setSavingId(target.id);
+    try {
+      const batch = writeBatch(db);
+      batch.update(doc(db, "users", target.id), { role, updatedAt: serverTimestamp() });
+      if (demoting) {
+        batch.delete(doc(db, "managerDirectory", target.id));
+        reports.forEach((r) =>
+          batch.update(doc(db, "users", r.id), { managerId: null, managerName: null, updatedAt: serverTimestamp() })
+        );
+      } else {
+        batch.set(doc(db, "managerDirectory", target.id), {
+          fullName: target.fullName.slice(0, 100),
+          ...(target.team ? { team: target.team } : {}),
+          updatedAt: serverTimestamp(),
+        });
+      }
+      await batch.commit();
+      logAction("profile_updated", "profile", target.id, { change: "role", from: target.role, to: role });
+
+      setUsers((prev) => prev.map((u) => {
+        if (u.id === target.id) return { ...u, role };
+        if (demoting && u.managerId === target.id) return { ...u, managerId: null };
+        return u;
+      }));
+      toast.success(`${target.fullName} is now ${role === "admin" ? "an admin" : `a ${role}`}`);
+    } catch (error) {
+      console.error("Role change failed:", error);
+      toast.error("Failed to change role");
+    } finally {
+      setSavingId(null);
+    }
   };
 
-  const fetchAnalytics = async () => {
-    // 1. Total users
-    const usersSnapshot = await getDocs(collection(db, "users"));
-    const totalUsers = usersSnapshot.size;
-
-    // 2. Active users (30d)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const activeUsers = usersSnapshot.docs.filter(doc => {
-      const createdAt = doc.data().createdAt?.toDate?.() || new Date();
-      return createdAt > thirtyDaysAgo;
-    }).length;
-
-    // 3. Activities & Check-ins
-    const activitiesSnapshot = await getDocs(collection(db, "activities"));
-    const checkInsSnapshot = await getDocs(collection(db, "checkIns"));
-
-    // 4. Signup timeline (last 30 days)
-    const signupsByDate: Record<string, number> = {};
-    usersSnapshot.docs.forEach(doc => {
-      const dateStr = format(doc.data().createdAt?.toDate?.() || new Date(), "MMM dd");
-      signupsByDate[dateStr] = (signupsByDate[dateStr] || 0) + 1;
-    });
-
-    const signupTimeline = Object.entries(signupsByDate).map(([date, count]) => ({
-      date,
-      count
-    })).sort((a, b) => {
-      // Simple sort by date string (might need actual Date objects for real accuracy)
-      return a.date.localeCompare(b.date);
-    });
-
-    setAnalytics({
-      totalUsers,
-      activeUsers,
-      totalActivities: activitiesSnapshot.size,
-      totalCheckIns: checkInsSnapshot.size,
-      signupTimeline
-    });
+  const changeManager = async (target: UserData, managerId: string | null) => {
+    if ((target.managerId ?? null) === managerId) return;
+    setSavingId(target.id);
+    try {
+      const batch = writeBatch(db);
+      batch.update(doc(db, "users", target.id), {
+        managerId,
+        managerName: managerId ? (nameById.get(managerId) || "Manager").slice(0, 100) : null,
+        updatedAt: serverTimestamp(),
+      });
+      await batch.commit();
+      logAction("profile_updated", "profile", target.id, { change: "manager", to: managerId });
+      setUsers((prev) => prev.map((u) => (u.id === target.id ? { ...u, managerId } : u)));
+      toast.success("Manager updated. Their history becomes visible after their next sign-in.");
+    } catch (error) {
+      console.error("Manager change failed:", error);
+      toast.error("Failed to change manager");
+    } finally {
+      setSavingId(null);
+    }
   };
 
-  const fetchUsers = async () => {
-    const usersSnapshot = await getDocs(query(collection(db, "users"), orderBy("createdAt", "desc")));
-    const activitiesSnapshot = await getDocs(collection(db, "activities"));
-
-    // Group activities by userId
-    const activityCounts: Record<string, number> = {};
-    activitiesSnapshot.docs.forEach(doc => {
-      const uid = doc.data().userId;
-      activityCounts[uid] = (activityCounts[uid] || 0) + 1;
-    });
-
-    const userData: UserData[] = usersSnapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        email: data.email || "",
-        fullName: data.fullName || "User",
-        avatarUrl: data.avatarUrl,
-        role: data.role || "employee",
-        team: data.team,
-        createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
-        activityCount: activityCounts[doc.id] || 0
-      };
-    });
-
-    setUsers(userData);
+  // Managers created before the directory existed (or by hand in the console) need an entry
+  // before employees can choose them. Run after reviewing the role column.
+  const syncDirectory = async () => {
+    if (managers.length === 0) {
+      toast.info("No managers or admins to sync");
+      return;
+    }
+    setSavingId("__directory__");
+    try {
+      const batch = writeBatch(db);
+      managers.forEach((m) => batch.set(doc(db, "managerDirectory", m.id), {
+        fullName: m.fullName.slice(0, 100),
+        ...(m.team ? { team: m.team } : {}),
+        updatedAt: serverTimestamp(),
+      }));
+      await batch.commit();
+      toast.success(`Manager directory synced (${managers.length} people)`);
+    } catch (error) {
+      console.error("Directory sync failed:", error);
+      toast.error("Failed to sync manager directory");
+    } finally {
+      setSavingId(null);
+    }
   };
 
+  const search = searchQuery.toLowerCase();
   const filteredUsers = users.filter(
     (u) =>
-      u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.team?.toLowerCase().includes(searchQuery.toLowerCase())
+      u.email.toLowerCase().includes(search) ||
+      u.fullName.toLowerCase().includes(search) ||
+      u.team?.toLowerCase().includes(search)
   );
 
-  if (loading) {
+  if (loading && !analytics) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center py-24">
         <Loader2 className="w-10 h-10 animate-spin text-primary" />
       </div>
     );
   }
 
-  if (!isAdmin) return null;
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20">
-      <div className="container mx-auto p-6 max-w-7xl animate-fade-in">
+    <div className="bg-gradient-to-br from-background via-background to-secondary/20">
+      <div className="p-4 md:p-6 max-w-7xl mx-auto animate-fade-in">
         <header className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
-                <ShieldCheck className="h-3 w-3 mr-1" />
-                System Administrator
-              </Badge>
-            </div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              Admin Platform Control
+            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
+              <ShieldCheck className="h-3 w-3 mr-1" />
+              Administrator
+            </Badge>
+            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+              Admin
             </h1>
-            <p className="text-muted-foreground">Global monitoring and platform orchestration</p>
+            <p className="text-muted-foreground text-sm">Manage people, roles and reporting lines</p>
           </div>
-          <Button variant="outline" onClick={() => navigate("/dashboard")} className="gap-2">
-            <ChevronLeft className="h-4 w-4" />
-            Back to Dashboard
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={syncDirectory} disabled={savingId !== null} className="gap-2">
+              <Users className="h-4 w-4" />
+              Sync manager directory
+            </Button>
+            <Button variant="outline" onClick={fetchData} disabled={loading} className="gap-2">
+              <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+              Refresh
+            </Button>
+          </div>
         </header>
 
         {analytics && (
           <div className="space-y-6">
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {[
                 { label: 'Total Users', value: analytics.totalUsers, icon: Users, color: 'text-primary', bg: 'bg-primary/10' },
-                { label: '30d Active', value: analytics.activeUsers, icon: TrendingUp, color: 'text-success', bg: 'bg-success/10' },
+                { label: 'New (30 days)', value: analytics.newUsers30d, icon: TrendingUp, color: 'text-success', bg: 'bg-success/10' },
                 { label: 'Total Activities', value: analytics.totalActivities, icon: Activity, color: 'text-info', bg: 'bg-info/10' },
                 { label: 'Check-Ins', value: analytics.totalCheckIns, icon: BarChart3, color: 'text-accent', bg: 'bg-accent/10' },
-              ].map((stat, i) => (
-                <Card key={i} className="border-0 shadow-lg hover:scale-105 transition-transform">
+              ].map((stat) => (
+                <Card key={stat.label} className="border-0 shadow-lg">
                   <CardHeader className="flex flex-row items-center justify-between pb-2">
                     <CardTitle className="text-sm font-medium text-muted-foreground">{stat.label}</CardTitle>
                     <div className={cn("p-2 rounded-lg", stat.bg)}>
@@ -217,87 +304,53 @@ export default function Admin() {
               ))}
             </div>
 
-            {/* Growth Chart */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <Card className="lg:col-span-2 border-0 shadow-xl overflow-hidden">
-                <CardHeader>
-                  <CardTitle>Platform Growth</CardTitle>
-                  <CardDescription>User signups over the last 30 days</CardDescription>
-                </CardHeader>
-                <CardContent className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={analytics.signupTimeline}>
-                      <defs>
-                        <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.1} />
-                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted))" />
-                      <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
-                      <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
-                      <Area type="monotone" dataKey="count" stroke="hsl(var(--primary))" strokeWidth={2} fillOpacity={1} fill="url(#colorCount)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-
-              <Card className="border-0 shadow-xl bg-gradient-to-br from-primary to-accent text-white">
-                <CardHeader>
-                  <CardTitle className="text-white">Platform Health</CardTitle>
-                  <CardDescription className="text-white/80">Overall system performance</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Database Uptime</span>
-                      <span>99.9%</span>
-                    </div>
-                    <div className="h-1.5 w-full bg-white/20 rounded-full overflow-hidden">
-                      <div className="h-full bg-white rounded-full" style={{ width: '99.9%' }} />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Auth Latency</span>
-                      <span>120ms</span>
-                    </div>
-                    <div className="h-1.5 w-full bg-white/20 rounded-full overflow-hidden">
-                      <div className="h-full bg-white rounded-full" style={{ width: '94%' }} />
-                    </div>
-                  </div>
-                  <div className="pt-4 border-t border-white/10">
-                    <p className="text-xs text-white/70 italic">
-                      All system services are operating normally. Real-time Firebase listeners are active.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* User Management Table */}
             <Card className="border-0 shadow-xl overflow-hidden">
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader>
+                <CardTitle>Signups</CardTitle>
+                <CardDescription>New accounts per day, last 30 days</CardDescription>
+              </CardHeader>
+              <CardContent className="h-[260px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={analytics.signupTimeline}>
+                    <defs>
+                      <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2} />
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted))" />
+                    <XAxis dataKey="date" axisLine={false} tickLine={false} interval={4} tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
+                    <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
+                    <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                    <Area type="monotone" dataKey="count" name="Signups" stroke="hsl(var(--primary))" strokeWidth={2} fillOpacity={1} fill="url(#colorCount)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 shadow-xl overflow-hidden">
+              <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                 <div>
-                  <CardTitle>User Management</CardTitle>
-                  <CardDescription>Monitor user activity and system roles</CardDescription>
+                  <CardTitle>People</CardTitle>
+                  <CardDescription>
+                    Promote managers and set who reports to whom. Employees can only see managers listed here.
+                  </CardDescription>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="relative">
+                <div className="flex items-center gap-3 w-full md:w-auto">
+                  <div className="relative flex-1 md:flex-none">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       placeholder="Filter users..."
                       value={searchQuery}
                       onChange={e => setSearchQuery(e.target.value)}
-                      className="pl-10 h-10 w-[250px]"
+                      className="pl-10 h-10 md:w-[250px]"
                     />
                   </div>
                   <Button
                     variant="outline"
                     className="gap-2"
                     onClick={() => {
-                      exportUserListToCSV(filteredUsers);
+                      exportUserListToCSV(filteredUsers.map((u) => ({ ...u, activityCount: u.activityCount ?? 0 })));
                       toast.success("User list downloaded!");
                     }}
                   >
@@ -306,60 +359,86 @@ export default function Admin() {
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/50 hover:bg-muted/50">
-                      <TableHead className="w-[300px]">User</TableHead>
+                      <TableHead className="min-w-[240px]">User</TableHead>
                       <TableHead>Role</TableHead>
+                      <TableHead>Reports to</TableHead>
                       <TableHead>Team</TableHead>
-                      <TableHead>Activity</TableHead>
+                      <TableHead>Activities</TableHead>
                       <TableHead>Joined</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredUsers.map((user) => (
-                      <TableRow key={user.id} className="hover:bg-muted/30">
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-10 w-10 border-2 border-background shadow-sm">
-                              <AvatarImage src={user.avatarUrl} />
-                              <AvatarFallback className="bg-primary/10 text-primary font-bold">
-                                {user.fullName.slice(0, 2).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex flex-col">
-                              <span className="font-semibold">{user.fullName}</span>
-                              <span className="text-xs text-muted-foreground">{user.email}</span>
+                    {filteredUsers.map((u) => {
+                      const isSelf = u.id === currentUser?.uid;
+                      const saving = savingId === u.id;
+                      return (
+                        <TableRow key={u.id} className="hover:bg-muted/30">
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-9 w-9 border-2 border-background shadow-sm">
+                                <AvatarImage src={u.avatarUrl} />
+                                <AvatarFallback className="bg-primary/10 text-primary font-bold">
+                                  {u.fullName.slice(0, 2).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex flex-col min-w-0">
+                                <span className="font-semibold truncate">{u.fullName}{isSelf && " (you)"}</span>
+                                <span className="text-xs text-muted-foreground truncate">{u.email}</span>
+                              </div>
                             </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={cn(
-                            "capitalize",
-                            user.role === 'admin' ? "bg-accent/10 text-accent border-accent/20" :
-                              user.role === 'manager' ? "bg-primary/10 text-primary border-primary/20" : ""
-                          )}>
-                            {user.role}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm font-medium">{user.team || '—'}</span>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <div className="text-sm font-bold">{user.activityCount}</div>
-                            <span className="text-[10px] text-muted-foreground uppercase tracking-widest">Acts</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2 text-muted-foreground">
-                            <Calendar className="h-3 w-3" />
-                            <span className="text-xs">{format(new Date(user.createdAt), 'MMM d, yyyy')}</span>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                          </TableCell>
+                          <TableCell>
+                            <Select
+                              value={u.role}
+                              disabled={isSelf || saving}
+                              onValueChange={(role) => changeRole(u, role as UserRole)}
+                            >
+                              <SelectTrigger className="h-9 w-[130px]" aria-label={`Role for ${u.fullName}`}>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="employee">Employee</SelectItem>
+                                <SelectItem value="manager">Manager</SelectItem>
+                                <SelectItem value="admin">Admin</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell>
+                            <Select
+                              value={u.managerId ?? NO_MANAGER}
+                              disabled={saving}
+                              onValueChange={(value) => changeManager(u, value === NO_MANAGER ? null : value)}
+                            >
+                              <SelectTrigger className="h-9 w-[180px]" aria-label={`Manager for ${u.fullName}`}>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value={NO_MANAGER}>No manager</SelectItem>
+                                {managers.filter((m) => m.id !== u.id).map((m) => (
+                                  <SelectItem key={m.id} value={m.id}>{m.fullName}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm font-medium">{u.team || '—'}</span>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm font-bold">{u.activityCount ?? '—'}</span>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <Calendar className="h-3 w-3" />
+                              <span className="text-xs whitespace-nowrap">{format(new Date(u.createdAt), 'MMM d, yyyy')}</span>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </CardContent>

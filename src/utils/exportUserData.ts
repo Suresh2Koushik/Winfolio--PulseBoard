@@ -13,6 +13,13 @@ export interface UserData {
   activity_count?: number;
 }
 
+// Quote every cell, escape embedded quotes, and neutralise values a spreadsheet would
+// execute as a formula (user-controlled names like "=HYPERLINK(...)").
+function csvCell(value: string): string {
+  const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+  return `"${safe.replace(/"/g, '""')}"`;
+}
+
 export function exportUserListToCSV(users: UserData[]) {
   // Prepare CSV data
   const headers = ["Email", "Full Name", "Role", "Team", "Signup Date", "Activity Count"];
@@ -28,7 +35,7 @@ export function exportUserListToCSV(users: UserData[]) {
   // Create CSV content
   const csvContent = [
     headers.join(","),
-    ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
+    ...rows.map((row) => row.map(csvCell).join(",")),
   ].join("\n");
 
   // Create blob and trigger download

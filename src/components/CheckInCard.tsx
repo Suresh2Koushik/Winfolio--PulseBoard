@@ -1,4 +1,4 @@
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -46,7 +46,7 @@ export function CheckInCard({
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                             <Calendar className="h-4 w-4" />
                             <span>
-                                {format(new Date(checkIn.weekStart), 'MMM d')} - {format(new Date(checkIn.weekEnd), 'MMM d, yyyy')}
+                                {format(parseISO(checkIn.weekStart), 'MMM d')} - {format(parseISO(checkIn.weekEnd), 'MMM d, yyyy')}
                             </span>
                         </div>
                         <CardTitle className="text-lg font-semibold">

@@ -14,7 +14,7 @@ import {
   TrendingUp,
   AlertCircle
 } from "lucide-react";
-import { format, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
+import { format, startOfMonth, endOfMonth, isWithinInterval, parseISO, subMonths } from "date-fns";
 import { toast } from "sonner";
 import { exportToPDF } from "@/utils/pdfExport";
 
@@ -23,23 +23,23 @@ interface ReviewGeneratorProps {
 }
 
 export function ReviewGenerator({ activities }: ReviewGeneratorProps) {
-  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().substring(0, 7)); // YYYY-MM
+  const [selectedMonth, setSelectedMonth] = useState(() => format(new Date(), "yyyy-MM"));
   const [isGenerating, setIsGenerating] = useState(false);
 
+  // Step back from the 1st of this month so the 29th-31st can't skip or repeat months.
   const months = Array.from({ length: 12 }, (_, i) => {
-    const d = new Date();
-    d.setMonth(d.getMonth() - i);
+    const d = subMonths(startOfMonth(new Date()), i);
     return {
       label: format(d, "MMMM yyyy"),
-      value: d.toISOString().substring(0, 7)
+      value: format(d, "yyyy-MM"),
     };
   });
 
-  const monthStart = startOfMonth(new Date(selectedMonth));
-  const monthEnd = endOfMonth(new Date(selectedMonth));
+  const monthStart = startOfMonth(parseISO(`${selectedMonth}-01`));
+  const monthEnd = endOfMonth(monthStart);
 
   const filteredActivities = activities.filter(activity => {
-    const activityDate = new Date(activity.date);
+    const activityDate = parseISO(activity.date);
     return isWithinInterval(activityDate, { start: monthStart, end: monthEnd });
   });
 
@@ -81,7 +81,7 @@ export function ReviewGenerator({ activities }: ReviewGeneratorProps) {
             <div>
               <CardTitle className="text-2xl font-bold flex items-center gap-2">
                 <Sparkles className="h-6 w-6" />
-                Performance Review Intelligence
+                Performance Review Report
               </CardTitle>
               <CardDescription className="text-white/80 mt-1">
                 Generate professional monthly impact reports from your tracked activities.
@@ -150,7 +150,7 @@ export function ReviewGenerator({ activities }: ReviewGeneratorProps) {
                   <div key={activity.id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-lg">{(CATEGORIES as any).find((c: any) => c.name === activity.category)?.emoji || '🔹'}</span>
+                        <span className="text-lg">{CATEGORIES.find((c) => c.name === activity.category)?.emoji || '🔹'}</span>
                         <h5 className="font-bold truncate">{activity.title}</h5>
                       </div>
                       <p className="text-sm text-muted-foreground line-clamp-1">{activity.description}</p>
@@ -160,7 +160,7 @@ export function ReviewGenerator({ activities }: ReviewGeneratorProps) {
                         {activity.category}
                       </Badge>
                       <Badge variant="outline" className="text-[10px] font-bold">
-                        {format(new Date(activity.date), "MMM dd")}
+                        {format(parseISO(activity.date), "MMM dd")}
                       </Badge>
                       <Badge
                         variant={activity.status === 'Done' ? 'default' : 'secondary'}
@@ -183,7 +183,7 @@ export function ReviewGenerator({ activities }: ReviewGeneratorProps) {
               <div className="max-w-md">
                 <p className="font-bold text-sm">Ready for Review?</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Generated reports include AI-powered impact summaries, status breakdowns, and a professional activity ledger.
+                  The PDF includes a summary of your month, a status breakdown, and a full activity ledger.
                 </p>
               </div>
             </div>

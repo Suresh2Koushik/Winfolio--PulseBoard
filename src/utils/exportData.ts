@@ -1,11 +1,11 @@
 import * as XLSX from "xlsx";
 import { Activity } from "@/types";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 
 export function exportToExcel(activities: Activity[], filename: string = "work-activities") {
   // Prepare data for Excel
   const excelData = activities.map((activity) => ({
-    Date: format(new Date(activity.date), "MMM d, yyyy"),
+    Date: format(parseISO(activity.date), "MMM d, yyyy"),
     Week: activity.weekNumber,
     Title: activity.title,
     Description: activity.description,

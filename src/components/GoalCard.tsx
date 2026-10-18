@@ -1,4 +1,4 @@
-import { format, differenceInDays } from "date-fns";
+import { format, differenceInDays, parseISO } from "date-fns";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,7 +27,7 @@ interface GoalCardProps {
     compact?: boolean;
 }
 
-const statusConfig: Record<GoalStatus, { label: string; color: string; bg: string; icon: any }> = {
+const statusConfig: Record<GoalStatus, { label: string; color: string; bg: string; icon: React.ElementType }> = {
     on_track: {
         label: 'On Track',
         color: 'text-success',
@@ -69,7 +69,7 @@ export function GoalCard({
     showActions = true,
     compact = false
 }: GoalCardProps) {
-    const daysRemaining = differenceInDays(new Date(goal.endDate), new Date());
+    const daysRemaining = differenceInDays(parseISO(goal.endDate), new Date());
     const isOverdue = daysRemaining < 0 && goal.status !== 'completed';
     const status = statusConfig[goal.status];
     const priority = priorityConfig[goal.priority];
@@ -152,7 +152,7 @@ export function GoalCard({
                             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Timeline</p>
                             <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
                                 <Calendar className="h-3.5 w-3.5 text-primary" />
-                                {format(new Date(goal.endDate), 'MMM d, yyyy')}
+                                {format(parseISO(goal.endDate), 'MMM d, yyyy')}
                             </div>
                         </div>
                     </div>

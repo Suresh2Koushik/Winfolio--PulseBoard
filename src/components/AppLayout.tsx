@@ -11,13 +11,10 @@ import {
   CheckCircle2,
   Sparkles,
   Users,
-  Settings,
   ChevronLeft,
   ChevronRight,
   Moon,
   Sun,
-  Search,
-  Bell,
   Menu,
   X,
   Shield,
@@ -72,6 +69,7 @@ function ThemeToggle() {
   return (
     <button
       onClick={() => setDark(!dark)}
+      aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
       className="relative w-9 h-9 rounded-xl flex items-center justify-center
         bg-muted/50 hover:bg-muted transition-all duration-300
         hover:scale-105 active:scale-95"
@@ -99,9 +97,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     (item) => !item.roles || item.roles.includes(userRole)
   );
 
+  // "/dashboard?tab=review" is its own nav item, so the plain Dashboard item
+  // should not also light up while the Reviews tab is open.
   const isActive = (path: string) => {
-    if (path.includes("?")) return location.pathname + location.search === path;
-    return location.pathname === path;
+    const [pathname, search] = path.split("?");
+    if (location.pathname !== pathname) return false;
+    const tab = new URLSearchParams(location.search).get("tab");
+    if (search) return tab === new URLSearchParams(search).get("tab");
+    return pathname !== "/dashboard" || tab !== "review";
   };
 
   const initials = userProfile?.fullName
@@ -142,7 +145,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             return (
               <button
                 key={item.path}
-                onClick={() => navigate(item.path.split("?")[0])}
+                onClick={() => navigate(item.path)}
                 className={`w-full flex items-center gap-3 rounded-xl px-3 py-2.5
                   transition-all duration-200 group relative
                   ${active
@@ -208,7 +211,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
             <h1 className="text-lg font-bold text-gradient">PulseBoard</h1>
           </div>
-          <button onClick={() => setMobileOpen(false)} className="p-2 hover:bg-muted rounded-lg">
+          <button onClick={() => setMobileOpen(false)} aria-label="Close navigation" className="p-2 hover:bg-muted rounded-lg">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -232,7 +235,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             return (
               <button
                 key={item.path}
-                onClick={() => navigate(item.path.split("?")[0])}
+                onClick={() => navigate(item.path)}
                 className={`w-full flex items-center gap-3 rounded-xl px-3 py-3
                   transition-all duration-200
                   ${active
@@ -271,6 +274,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             {/* Mobile menu button */}
             <button
               onClick={() => setMobileOpen(true)}
+              aria-label="Open navigation"
               className="lg:hidden p-2 hover:bg-muted rounded-xl transition-colors"
             >
               <Menu className="h-5 w-5" />
@@ -285,28 +289,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Search button */}
-            <button className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl
-              bg-muted/50 hover:bg-muted text-muted-foreground text-sm
-              transition-all duration-200 border border-border/50">
-              <Search className="h-3.5 w-3.5" />
-              <span>Search</span>
-              <kbd className="hidden md:inline-flex h-5 items-center gap-0.5 rounded border bg-muted px-1.5 text-[10px] font-medium text-muted-foreground">
-                ⌘K
-              </kbd>
-            </button>
-
-            {/* Notifications */}
-            <button className="relative p-2 hover:bg-muted rounded-xl transition-colors">
-              <Bell className="h-5 w-5 text-muted-foreground" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full" />
-            </button>
-
-            {/* Desktop theme toggle */}
-            <div className="hidden lg:block">
-              <ThemeToggle />
-            </div>
-
             {/* User Menu */}
             <UserMenu />
           </div>

@@ -4,6 +4,7 @@ import { ActivityCard } from "@/components/ActivityCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { parseISO } from "date-fns";
 
 interface QuarterViewProps {
   activities: Activity[];
@@ -20,12 +21,12 @@ export function QuarterView({ activities, onEdit, onDelete }: QuarterViewProps) 
   const [selectedYear, setSelectedYear] = useState(CURRENT_YEAR);
 
   // Get available years from activities
-  const years = Array.from(new Set(activities.map(a => new Date(a.date).getFullYear()))).sort((a, b) => b - a);
+  const years = Array.from(new Set(activities.map(a => parseISO(a.date).getFullYear()))).sort((a, b) => b - a);
   if (!years.includes(CURRENT_YEAR)) years.unshift(CURRENT_YEAR);
 
   // Filter activities for selected quarter and year
   const filteredActivities = activities.filter((activity) => {
-    const activityDate = new Date(activity.date);
+    const activityDate = parseISO(activity.date);
     const activityYear = activityDate.getFullYear();
     const activityMonth = activityDate.getMonth();
     const activityQuarter = `Q${Math.floor(activityMonth / 3) + 1}`;
@@ -48,7 +49,7 @@ export function QuarterView({ activities, onEdit, onDelete }: QuarterViewProps) 
   const groupedByMonth = monthsInQuarter[selectedQuarter as keyof typeof monthsInQuarter].reduce((acc, month, idx) => {
     const monthNum = QUARTERS.indexOf(selectedQuarter) * 3 + idx;
     acc[month] = filteredActivities.filter(a => {
-      const activityMonth = new Date(a.date).getMonth();
+      const activityMonth = parseISO(a.date).getMonth();
       return activityMonth === monthNum;
     });
     return acc;
