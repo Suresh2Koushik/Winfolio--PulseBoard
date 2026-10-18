@@ -17,7 +17,9 @@ import { Goal, GoalStatus } from '@/types';
 import { toast } from 'sonner';
 
 export function useGoals() {
-    const { user } = useAuth();
+    const { user, userProfile } = useAuth();
+    // Copied onto each goal so the assigned manager can read it (see firestore.rules).
+    const managerId = userProfile?.managerId ?? null;
     const [goals, setGoals] = useState<Goal[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -70,6 +72,7 @@ export function useGoals() {
             const docRef = await addDoc(collection(db, 'goals'), {
                 ...data,
                 userId: user.uid,
+                managerId,
                 linkedCheckInIds: [],
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
@@ -81,14 +84,16 @@ export function useGoals() {
             toast.error('Failed to create goal');
             return null;
         }
-    }, [user]);
+    }, [user, managerId]);
 
     const updateGoal = useCallback(async (id: string, data: Partial<Goal>) => {
         if (!user) return;
 
         try {
+            const { id: _id, userId: _userId, createdAt: _createdAt, ...fields } = data;
             await updateDoc(doc(db, 'goals', id), {
-                ...data,
+                ...fields,
+                managerId,
                 updatedAt: serverTimestamp(),
             });
             toast.success('Goal updated');
@@ -96,7 +101,7 @@ export function useGoals() {
             console.error('Error updating goal:', error);
             toast.error('Failed to update goal');
         }
-    }, [user]);
+    }, [user, managerId]);
 
     const updateGoalProgress = useCallback(async (id: string, progress: number, status?: GoalStatus) => {
         if (!user) return;
@@ -104,6 +109,7 @@ export function useGoals() {
         try {
             const updates: Record<string, unknown> = {
                 progress,
+                managerId,
                 updatedAt: serverTimestamp(),
             };
 
@@ -116,8 +122,9 @@ export function useGoals() {
             await updateDoc(doc(db, 'goals', id), updates);
         } catch (error) {
             console.error('Error updating goal progress:', error);
+            toast.error('Failed to update progress');
         }
-    }, [user]);
+    }, [user, managerId]);
 
     const deleteGoal = useCallback(async (id: string) => {
         if (!user) return;
@@ -141,12 +148,13 @@ export function useGoals() {
             const linkedCheckInIds = [...goal.linkedCheckInIds, checkInId];
             await updateDoc(doc(db, 'goals', goalId), {
                 linkedCheckInIds,
+                managerId,
                 updatedAt: serverTimestamp(),
             });
         } catch (error) {
             console.error('Error linking check-in to goal:', error);
         }
-    }, [user, goals]);
+    }, [user, goals, managerId]);
 
     // Calculate stats
     const stats = {

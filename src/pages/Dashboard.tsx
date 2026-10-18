@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Activity, DEFAULT_CATEGORIES } from "@/types";
+import { useState } from "react";
+import { Activity } from "@/types";
 import { useActivities } from "@/hooks/useActivities";
 import { useUserData } from "@/hooks/useUserData";
 import { useCheckIns } from "@/hooks/useCheckIns";
@@ -38,6 +38,8 @@ import {
   FolderTree,
   Settings2,
 } from "lucide-react";
+import { parseISO } from "date-fns";
+import { FeedbackCard, ActionItemList } from "@/components/FeedbackComponents";
 import { WeeklyView } from "./WeeklyView";
 import { QuarterView } from "./QuarterView";
 import { CategoryView } from "./CategoryView";
@@ -50,6 +52,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 
+const DASHBOARD_TABS = ["overview", "activities", "weekly", "categories", "quarter", "review", "settings"];
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const { userProfile } = useAuth();
@@ -57,24 +61,46 @@ export default function Dashboard() {
   const { categories, teams } = useUserData();
   const { checkIns, loading: loadingCheckIns } = useCheckIns();
   const { goals, stats: goalStats, loading: loadingGoals } = useGoals();
-  const { actionItems, stats: feedbackStats, loading: loadingFeedback } = useFeedback();
+  const {
+    feedback,
+    actionItems,
+    stats: feedbackStats,
+    loading: loadingFeedback,
+    acknowledgeFeedback,
+    updateActionItemStatus,
+  } = useFeedback();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [formOpen, setFormOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("overview");
+  const requestedTab = searchParams.get("tab") ?? "";
+  const activeTab = DASHBOARD_TABS.includes(requestedTab) ? requestedTab : "overview";
+  const setActiveTab = (tab: string) => {
+    setSearchParams(tab === "overview" ? {} : { tab }, { replace: true });
+  };
+
+  // Closing the form must also leave edit mode, or "Add New" would reopen the old activity.
+  const handleFormOpenChange = (open: boolean) => {
+    setFormOpen(open);
+    if (!open) setEditingActivity(null);
+  };
+
+  const openNewActivity = () => {
+    setEditingActivity(null);
+    setFormOpen(true);
+  };
 
   const loading = loadingActivities || loadingCheckIns || loadingGoals || loadingFeedback;
 
   const handleSave = async (activityData: Omit<Activity, "id" | "userId" | "createdAt" | "updatedAt">) => {
     if (editingActivity) {
       await updateActivity(editingActivity.id, activityData);
-      setEditingActivity(null);
     } else {
       await addActivity(activityData);
     }
-    setFormOpen(false);
+    handleFormOpenChange(false);
   };
 
   const handleEdit = (activity: Activity) => {
@@ -92,9 +118,9 @@ export default function Dashboard() {
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
 
-  const weekActivities = activities.filter((a) => a.weekNumber === currentWeek && new Date(a.date).getFullYear() === currentYear);
+  const weekActivities = activities.filter((a) => a.weekNumber === currentWeek && parseISO(a.date).getFullYear() === currentYear);
   const monthActivities = activities.filter((a) => {
-    const date = new Date(a.date);
+    const date = parseISO(a.date);
     return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
   });
 
@@ -108,7 +134,7 @@ export default function Dashboard() {
   const filteredActivities = activities.filter(
     (activity) =>
       activity.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      activity.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (activity.description || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
       activity.category.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -134,7 +160,7 @@ export default function Dashboard() {
         <div className="mb-6">
           <div className="flex items-center gap-2 mb-1">
             <Badge variant="outline" className="text-xs border-primary/20 text-primary">
-              {userProfile?.role === 'manager' ? 'Manager Access' : 'Employee Portal'}
+              {userProfile?.role === 'admin' ? 'Admin Access' : userProfile?.role === 'manager' ? 'Manager Access' : 'Employee Portal'}
             </Badge>
             {userProfile?.team && (
               <Badge variant="outline" className="text-xs">
@@ -149,7 +175,7 @@ export default function Dashboard() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:w-auto overflow-x-auto h-auto p-1 gap-1">
+          <TabsList className="flex flex-wrap w-full lg:w-auto h-auto p-1 gap-1 justify-start">
             <TabsTrigger value="overview" className="gap-2">
               <LayoutDashboard className="h-4 w-4" />
               Overview
@@ -158,6 +184,14 @@ export default function Dashboard() {
               <BarChart3 className="h-4 w-4" />
               Activities
             </TabsTrigger>
+            <TabsTrigger value="weekly" className="gap-2">
+              <CalendarDays className="h-4 w-4" />
+              Weekly
+            </TabsTrigger>
+            <TabsTrigger value="categories" className="gap-2">
+              <FolderTree className="h-4 w-4" />
+              Categories
+            </TabsTrigger>
             <TabsTrigger value="quarter" className="gap-2">
               <Calendar className="h-4 w-4" />
               Quarter
@@ -165,6 +199,10 @@ export default function Dashboard() {
             <TabsTrigger value="review" className="gap-2">
               <Sparkles className="h-4 w-4" />
               Reviews
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="gap-2">
+              <Settings2 className="h-4 w-4" />
+              Settings
             </TabsTrigger>
           </TabsList>
 
@@ -207,6 +245,29 @@ export default function Dashboard() {
                   actionItems={actionItems}
                 />
 
+                {(feedback.length > 0 || actionItems.length > 0) && (
+                  <Card className="card-glass border-0 shadow-xl overflow-hidden">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="flex items-center gap-2">
+                        <MessageSquare className="h-5 w-5 text-primary" />
+                        Feedback & Action Items
+                      </CardTitle>
+                      <CardDescription>From your manager</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {[...feedback]
+                        .sort((a, b) => Number(a.acknowledged) - Number(b.acknowledged))
+                        .slice(0, 3)
+                        .map((item) => (
+                          <FeedbackCard key={item.id} feedback={item} onAcknowledge={acknowledgeFeedback} />
+                        ))}
+                      {actionItems.length > 0 && (
+                        <ActionItemList items={actionItems} onUpdateStatus={updateActionItemStatus} />
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
                 <Card className="card-glass border-0 shadow-xl overflow-hidden">
                   <CardHeader className="flex flex-row items-center justify-between pb-2">
                     <div>
@@ -222,7 +283,7 @@ export default function Dashboard() {
                       {recentActivities.length === 0 ? (
                         <div className="text-center py-8">
                           <p className="text-muted-foreground mb-4">No recent activities found.</p>
-                          <Button onClick={() => setFormOpen(true)}>Add Your First Activity</Button>
+                          <Button onClick={openNewActivity}>Add Your First Activity</Button>
                         </div>
                       ) : (
                         recentActivities.map((activity) => (
@@ -245,7 +306,7 @@ export default function Dashboard() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <Button onClick={() => setFormOpen(true)} className="w-full justify-start gap-2 h-11 shadow-lg shadow-primary/20">
+                    <Button onClick={openNewActivity} className="w-full justify-start gap-2 h-11 shadow-lg shadow-primary/20">
                       <Plus className="h-4 w-4" />
                       Add Work Activity
                     </Button>
@@ -310,7 +371,7 @@ export default function Dashboard() {
                   <Download className="h-4 w-4" />
                   Export
                 </Button>
-                <Button size="sm" onClick={() => setFormOpen(true)} className="gap-2">
+                <Button size="sm" onClick={openNewActivity} className="gap-2">
                   <Plus className="h-4 w-4" />
                   Add New
                 </Button>
@@ -330,6 +391,14 @@ export default function Dashboard() {
             </div>
           </TabsContent>
 
+          <TabsContent value="weekly">
+            <WeeklyView activities={activities} onEdit={handleEdit} onDelete={handleDelete} />
+          </TabsContent>
+
+          <TabsContent value="categories">
+            <CategoryView activities={activities} onEdit={handleEdit} onDelete={handleDelete} />
+          </TabsContent>
+
           <TabsContent value="quarter">
             <QuarterView activities={activities} onEdit={handleEdit} onDelete={handleDelete} />
           </TabsContent>
@@ -337,9 +406,13 @@ export default function Dashboard() {
           <TabsContent value="review">
             <ReviewGenerator activities={activities} />
           </TabsContent>
+
+          <TabsContent value="settings">
+            <CategoryManagement />
+          </TabsContent>
         </Tabs>
 
-        <ActivityForm open={formOpen} onOpenChange={setFormOpen} onSave={handleSave} editActivity={editingActivity} />
+        <ActivityForm open={formOpen} onOpenChange={handleFormOpenChange} onSave={handleSave} editActivity={editingActivity} />
         <UploadModal
           open={uploadOpen}
           onOpenChange={setUploadOpen}

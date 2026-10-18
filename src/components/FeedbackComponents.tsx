@@ -14,7 +14,7 @@ import {
     Loader2,
     CheckCircle2
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { Feedback, ActionItem } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -59,10 +59,18 @@ export function FeedbackForm({
 
         setLoading(true);
         try {
-            await onSave({ content, actionItems });
+            // Include an action item typed but not yet added with "+".
+            const pendingItem = newActionTitle.trim()
+                ? [{ title: newActionTitle.trim(), dueDate: newActionDueDate }]
+                : [];
+            await onSave({ content: content.trim(), actionItems: [...actionItems, ...pendingItem] });
             setContent("");
             setActionItems([]);
+            setNewActionTitle("");
+            setNewActionDueDate("");
             onOpenChange(false);
+        } catch {
+            // The caller already showed an error; keep the dialog open so nothing is lost.
         } finally {
             setLoading(false);
         }
@@ -102,7 +110,7 @@ export function FeedbackForm({
                                         <span className="flex-1 text-sm">{item.title}</span>
                                         {item.dueDate && (
                                             <Badge variant="outline" className="text-xs">
-                                                Due {format(new Date(item.dueDate), 'MMM d')}
+                                                Due {format(parseISO(item.dueDate), 'MMM d')}
                                             </Badge>
                                         )}
                                         <Button
@@ -261,11 +269,11 @@ export function ActionItemList({ items, onUpdateStatus }: ActionItemListProps) {
                                     variant="outline"
                                     className={cn(
                                         "text-xs",
-                                        new Date(item.dueDate) < new Date() && "bg-destructive/10 text-destructive"
+                                        item.dueDate < new Date().toISOString().slice(0, 10) && "bg-destructive/10 text-destructive"
                                     )}
                                 >
                                     <Calendar className="h-3 w-3 mr-1" />
-                                    {format(new Date(item.dueDate), 'MMM d')}
+                                    {format(parseISO(item.dueDate), 'MMM d')}
                                 </Badge>
                             )}
                         </div>

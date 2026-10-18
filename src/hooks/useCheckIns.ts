@@ -9,8 +9,7 @@ import {
     updateDoc,
     deleteDoc,
     doc,
-    serverTimestamp,
-    getDocs
+    serverTimestamp
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -18,7 +17,9 @@ import { CheckIn } from '@/types';
 import { toast } from 'sonner';
 
 export function useCheckIns() {
-    const { user } = useAuth();
+    const { user, userProfile } = useAuth();
+    // Copied onto each check-in so the assigned manager can read it (see firestore.rules).
+    const managerId = userProfile?.managerId ?? null;
     const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -71,6 +72,7 @@ export function useCheckIns() {
             const docRef = await addDoc(collection(db, 'checkIns'), {
                 ...data,
                 userId: user.uid,
+                managerId,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
             });
@@ -81,14 +83,16 @@ export function useCheckIns() {
             toast.error('Failed to submit check-in');
             return null;
         }
-    }, [user]);
+    }, [user, managerId]);
 
     const updateCheckIn = useCallback(async (id: string, data: Partial<CheckIn>) => {
         if (!user) return;
 
         try {
+            const { id: _id, userId: _userId, createdAt: _createdAt, ...fields } = data;
             await updateDoc(doc(db, 'checkIns', id), {
-                ...data,
+                ...fields,
+                managerId,
                 updatedAt: serverTimestamp(),
             });
             toast.success('Check-in updated');
@@ -96,7 +100,7 @@ export function useCheckIns() {
             console.error('Error updating check-in:', error);
             toast.error('Failed to update check-in');
         }
-    }, [user]);
+    }, [user, managerId]);
 
     const deleteCheckIn = useCallback(async (id: string) => {
         if (!user) return;
@@ -117,79 +121,4 @@ export function useCheckIns() {
         updateCheckIn,
         deleteCheckIn,
     };
-}
-
-// Hook for managers to view team check-ins
-export function useTeamCheckIns() {
-    const { user, userRole } = useAuth();
-    const [checkIns, setCheckIns] = useState<(CheckIn & { userName: string; userEmail: string })[]>([]);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        if (!user || userRole === 'employee') {
-            setCheckIns([]);
-            setLoading(false);
-            return;
-        }
-
-        const fetchTeamCheckIns = async () => {
-            try {
-                // Get team members (users where managerId == current user)
-                const usersQuery = query(
-                    collection(db, 'users'),
-                    where('managerId', '==', user.uid)
-                );
-                const usersSnapshot = await getDocs(usersQuery);
-                const teamUserIds = usersSnapshot.docs.map(d => d.id);
-                const userMap = new Map(usersSnapshot.docs.map(d => [d.id, d.data()]));
-
-                if (teamUserIds.length === 0) {
-                    setCheckIns([]);
-                    setLoading(false);
-                    return;
-                }
-
-                // Get check-ins for team members
-                const checkInsQuery = query(
-                    collection(db, 'checkIns'),
-                    where('userId', 'in', teamUserIds.slice(0, 10)), // Firestore 'in' limit is 10
-                    orderBy('weekStart', 'desc')
-                );
-
-                const unsubscribe = onSnapshot(checkInsQuery, (snapshot) => {
-                    const data = snapshot.docs.map((doc) => {
-                        const checkInData = doc.data();
-                        const userData = userMap.get(checkInData.userId);
-                        return {
-                            id: doc.id,
-                            userId: checkInData.userId,
-                            weekStart: checkInData.weekStart,
-                            weekEnd: checkInData.weekEnd,
-                            workSummary: checkInData.workSummary,
-                            achievements: checkInData.achievements,
-                            blockers: checkInData.blockers,
-                            supportNeeded: checkInData.supportNeeded,
-                            linkedGoalIds: checkInData.linkedGoalIds || [],
-                            categories: checkInData.categories || [],
-                            createdAt: checkInData.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
-                            updatedAt: checkInData.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString(),
-                            userName: userData?.fullName || 'Unknown',
-                            userEmail: userData?.email || '',
-                        };
-                    });
-                    setCheckIns(data);
-                    setLoading(false);
-                });
-
-                return () => unsubscribe();
-            } catch (error) {
-                console.error('Error fetching team check-ins:', error);
-                setLoading(false);
-            }
-        };
-
-        fetchTeamCheckIns();
-    }, [user, userRole]);
-
-    return { checkIns, loading };
 }

@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { UserDataProvider } from "@/contexts/UserDataContext";
 import AppLayout from "@/components/AppLayout";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
@@ -25,23 +26,25 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
-            {/* Public routes — no sidebar */}
-            <Route path="/" element={<Landing />} />
-            <Route path="/auth" element={<Auth />} />
+          <UserDataProvider>
+            <Routes>
+              {/* Public routes — no sidebar */}
+              <Route path="/" element={<Landing />} />
+              <Route path="/auth" element={<Auth />} />
 
-            {/* Onboarding — no sidebar (first-time flow) */}
-            <Route path="/onboard" element={<ProtectedRoute><Onboard /></ProtectedRoute>} />
+              {/* Onboarding — no sidebar (first-time flow) */}
+              <Route path="/onboard" element={<ProtectedRoute allowIncompleteProfile><Onboard /></ProtectedRoute>} />
 
-            {/* App routes — with sidebar layout */}
-            <Route path="/dashboard" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
-            <Route path="/check-ins" element={<ProtectedRoute><AppLayout><CheckIns /></AppLayout></ProtectedRoute>} />
-            <Route path="/goals" element={<ProtectedRoute><AppLayout><Goals /></AppLayout></ProtectedRoute>} />
-            <Route path="/manager" element={<ProtectedRoute><AppLayout><ManagerDashboard /></AppLayout></ProtectedRoute>} />
-            <Route path="/admin" element={<ProtectedRoute><AppLayout><Admin /></AppLayout></ProtectedRoute>} />
+              {/* App routes — with sidebar layout */}
+              <Route path="/dashboard" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
+              <Route path="/check-ins" element={<ProtectedRoute><AppLayout><CheckIns /></AppLayout></ProtectedRoute>} />
+              <Route path="/goals" element={<ProtectedRoute><AppLayout><Goals /></AppLayout></ProtectedRoute>} />
+              <Route path="/manager" element={<ProtectedRoute requiredRole="manager"><AppLayout><ManagerDashboard /></AppLayout></ProtectedRoute>} />
+              <Route path="/admin" element={<ProtectedRoute requiredRole="admin"><AppLayout><Admin /></AppLayout></ProtectedRoute>} />
 
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </UserDataProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

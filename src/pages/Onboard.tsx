@@ -7,23 +7,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { db } from "@/lib/firebase";
-import { doc, setDoc, serverTimestamp, collection, getDocs, query, where, addDoc } from "firebase/firestore";
+import { doc, updateDoc, serverTimestamp, collection, getDocs, query, where, addDoc } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { DEFAULT_CATEGORIES, TEAM_OPTIONS, UserRole } from "@/types";
+import { DEFAULT_CATEGORIES, TEAM_OPTIONS } from "@/types";
 import { Plus, Trash2, Sparkles, Target, Users, CheckCircle2, ChevronRight, Loader2, Rocket } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function Onboard() {
   const navigate = useNavigate();
-  const { user, userProfile, refreshProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
   // Profile state
   const [team, setTeam] = useState(userProfile?.team || "");
   const [managerId, setManagerId] = useState(userProfile?.managerId || "");
-  const [managers, setManagers] = useState<{ id: string; name: string; email: string }[]>([]);
+  const [managers, setManagers] = useState<{ id: string; name: string }[]>([]);
 
   // Categories & Teams state
   const [customTeams, setCustomTeams] = useState<string[]>([]);
@@ -32,50 +32,44 @@ export default function Onboard() {
   useEffect(() => {
     const fetchManagers = async () => {
       try {
-        const q = query(
-          collection(db, "users"),
-          where("role", "in", ["manager", "admin"])
+        // Names only; the directory is maintained by admins when they grant manager access.
+        const snapshot = await getDocs(collection(db, "managerDirectory"));
+        setManagers(
+          snapshot.docs
+            .filter(d => d.id !== user?.uid)
+            .map(d => ({ id: d.id, name: d.data().fullName || "Manager" }))
+            .sort((a, b) => a.name.localeCompare(b.name))
         );
-        const snapshot = await getDocs(q);
-        const managerList = snapshot.docs.map(doc => ({
-          id: doc.id,
-          name: doc.data().fullName || doc.data().email,
-          email: doc.data().email,
-        }));
-        setManagers(managerList);
       } catch (error) {
         console.error("Error fetching managers:", error);
       }
     };
     fetchManagers();
-  }, []);
+  }, [user?.uid]);
 
   const handleCompleteProfile = async () => {
     if (!user) return;
-    if (!team) {
+    const teamName = team.trim();
+    if (!teamName) {
       toast.error("Please enter your team name");
       return;
     }
 
     setLoading(true);
     try {
-      let managerName = "";
-      if (managerId) {
-        const selectedManager = managers.find(m => m.id === managerId);
-        managerName = selectedManager?.name || "";
-      }
+      const selectedManager = managers.find(m => m.id === managerId);
 
-      await setDoc(doc(db, "users", user.uid), {
-        team,
-        managerId: managerId || null,
-        managerName: managerName || null,
+      await updateDoc(doc(db, "users", user.uid), {
+        team: teamName.slice(0, 100),
+        managerId: selectedManager ? selectedManager.id : null,
+        managerName: selectedManager ? selectedManager.name : null,
         updatedAt: serverTimestamp(),
-      }, { merge: true });
+      });
 
-      await refreshProfile();
       setStep(2);
-    } catch (error: any) {
-      toast.error(error.message || "Failed to update profile");
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      toast.error("Failed to update profile");
     } finally {
       setLoading(false);
     }
@@ -85,34 +79,45 @@ export default function Onboard() {
     if (!user) return;
     setLoading(true);
     try {
-      // Add default categories for the user
-      const categoryPromises = DEFAULT_CATEGORIES.map(cat =>
-        addDoc(collection(db, "userCategories"), {
-          userId: user.uid,
-          name: cat.name,
-          emoji: cat.emoji,
-          color: cat.color,
-          keywords: cat.keywords,
-          createdAt: serverTimestamp(),
-        })
-      );
+      // Only add what's missing, so re-running onboarding never creates duplicates.
+      const [existingCategories, existingTeams] = await Promise.all([
+        getDocs(query(collection(db, "userCategories"), where("userId", "==", user.uid))),
+        getDocs(query(collection(db, "userTeams"), where("userId", "==", user.uid))),
+      ]);
+      const haveCategory = new Set(existingCategories.docs.map(d => d.data().name));
+      const haveTeam = new Set(existingTeams.docs.map(d => d.data().name));
 
-      // Add default plus custom teams
+      const categoryPromises = DEFAULT_CATEGORIES
+        .filter(cat => !haveCategory.has(cat.name))
+        .map(cat =>
+          addDoc(collection(db, "userCategories"), {
+            userId: user.uid,
+            name: cat.name,
+            emoji: cat.emoji,
+            color: cat.color,
+            keywords: cat.keywords,
+            createdAt: serverTimestamp(),
+          })
+        );
+
       const allTeams = Array.from(new Set([...TEAM_OPTIONS, ...customTeams]));
-      const teamPromises = allTeams.map(name =>
-        addDoc(collection(db, "userTeams"), {
-          userId: user.uid,
-          name,
-          createdAt: serverTimestamp(),
-        })
-      );
+      const teamPromises = allTeams
+        .filter(name => !haveTeam.has(name))
+        .map(name =>
+          addDoc(collection(db, "userTeams"), {
+            userId: user.uid,
+            name,
+            createdAt: serverTimestamp(),
+          })
+        );
 
       await Promise.all([...categoryPromises, ...teamPromises]);
 
       toast.success("All set! Welcome to PulseBoard.");
       navigate("/dashboard");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to complete setup");
+    } catch (error) {
+      console.error("Error completing setup:", error);
+      toast.error("Failed to complete setup");
     } finally {
       setLoading(false);
     }
@@ -136,7 +141,7 @@ export default function Onboard() {
             Let's get you started
           </h1>
           <p className="text-muted-foreground text-lg">
-            Complete a few details to personalized your PulseBoard experience.
+            Complete a few details to personalize your PulseBoard experience.
           </p>
         </div>
 
@@ -185,7 +190,7 @@ export default function Onboard() {
                   </SelectTrigger>
                   <SelectContent>
                     {managers.length === 0 ? (
-                      <div className="p-2 text-center text-sm text-muted-foreground">No managers found. You can add one later.</div>
+                      <div className="p-2 text-center text-sm text-muted-foreground">No managers yet. You can set one later from "Edit profile" in your account menu.</div>
                     ) : (
                       managers.map(m => (
                         <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
@@ -242,7 +247,7 @@ export default function Onboard() {
                     value={newTeam}
                     onChange={e => setNewTeam(e.target.value)}
                     placeholder="Add custom team..."
-                    onKeyPress={e => e.key === 'Enter' && addCustomTeam()}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustomTeam(); } }}
                   />
                   <Button variant="outline" size="icon" onClick={addCustomTeam}>
                     <Plus className="h-4 w-4" />

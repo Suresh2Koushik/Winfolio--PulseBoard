@@ -7,7 +7,6 @@ import {
     MessageSquare,
     TrendingUp,
     Loader2,
-    ChevronRight,
     Clock
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -16,45 +15,29 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { UserMenu } from "@/components/UserMenu";
+import { FeedbackForm, FeedbackCard } from "@/components/FeedbackComponents";
 import { useTeamData } from "@/hooks/useTeamData";
-import { useTeamCheckIns } from "@/hooks/useCheckIns";
-import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
-import { format } from "date-fns";
-import { cn } from "@/lib/utils";
+import { useFeedback } from "@/hooks/useFeedback";
+import { useAuditLog } from "@/hooks/useAuditLog";
+import { format, parseISO } from "date-fns";
+
+interface FeedbackTarget {
+    employeeId: string;
+    employeeName: string;
+    checkInId?: string;
+}
 
 export default function ManagerDashboard() {
-    const { userRole } = useAuth();
-    const navigate = useNavigate();
-    const { teamMembers, loading: loadingTeam, stats } = useTeamData();
-    const { checkIns: teamCheckIns, loading: loadingCheckIns } = useTeamCheckIns();
+    const { teamMembers, teamCheckIns, loading: loadingTeam, error, stats } = useTeamData();
+    const { givenFeedback, addFeedback, loading: loadingFeedback } = useFeedback();
+    const { logAction } = useAuditLog();
+    const [feedbackTarget, setFeedbackTarget] = useState<FeedbackTarget | null>(null);
 
-    // Restrict to managers/admins
-    if (userRole === 'employee') {
-        return (
-            <div className="min-h-screen flex items-center justify-center">
-                <Card className="max-w-md">
-                    <CardContent className="pt-6 text-center">
-                        <AlertTriangle className="h-12 w-12 mx-auto text-warning mb-4" />
-                        <h2 className="text-xl font-semibold mb-2">Access Restricted</h2>
-                        <p className="text-muted-foreground mb-4">
-                            This dashboard is only available to managers and admins.
-                        </p>
-                        <Button onClick={() => navigate('/dashboard')}>
-                            Go to Dashboard
-                        </Button>
-                    </CardContent>
-                </Card>
-            </div>
-        );
-    }
-
-    const loading = loadingTeam || loadingCheckIns;
+    const loading = loadingTeam || loadingFeedback;
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
+            <div className="flex items-center justify-center py-24">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
         );
@@ -69,20 +52,42 @@ export default function ManagerDashboard() {
         .filter(c => c.blockers && c.blockers.trim().length > 0)
         .slice(0, 5);
 
+    const handleSendFeedback = async (data: { content: string; actionItems: { title: string; dueDate?: string }[] }) => {
+        if (!feedbackTarget) return;
+        const id = await addFeedback({ ...feedbackTarget, ...data });
+        if (id) {
+            logAction('feedback_given', 'feedback', id, {
+                employeeId: feedbackTarget.employeeId,
+                actionItems: data.actionItems.length,
+            });
+        } else {
+            // Keep the dialog open so the manager doesn't lose what they wrote.
+            throw new Error('Feedback not sent');
+        }
+    };
+
+    const initials = (name?: string) => name?.slice(0, 2).toUpperCase() || 'U';
+
     return (
-        <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20">
-            <div className="container mx-auto p-6 max-w-7xl">
-                <header className="mb-8 flex justify-between items-start">
-                    <div>
-                        <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                            Manager Dashboard
-                        </h1>
-                        <p className="text-muted-foreground">
-                            Monitor your team's progress and provide support
-                        </p>
-                    </div>
-                    <UserMenu />
+        <div className="bg-gradient-to-br from-background via-background to-secondary/20">
+            <div className="p-4 md:p-6 max-w-7xl mx-auto">
+                <header className="mb-8">
+                    <h1 className="text-2xl md:text-3xl font-bold mb-1 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                        Manager Dashboard
+                    </h1>
+                    <p className="text-muted-foreground text-sm">
+                        Monitor your team's progress and provide support
+                    </p>
                 </header>
+
+                {error && (
+                    <Card className="mb-6 border-warning/40 bg-warning/5">
+                        <CardContent className="py-3 text-sm text-warning flex items-center gap-2">
+                            <AlertTriangle className="h-4 w-4" />
+                            {error} Try refreshing the page.
+                        </CardContent>
+                    </Card>
+                )}
 
                 {/* Stats Overview */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -102,7 +107,7 @@ export default function ManagerDashboard() {
                         <CardHeader className="pb-2">
                             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                                 <Calendar className="h-4 w-4" />
-                                Check-In Rate
+                                Checked In (7 days)
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
@@ -127,7 +132,7 @@ export default function ManagerDashboard() {
                         <CardHeader className="pb-2">
                             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                                 <MessageSquare className="h-4 w-4" />
-                                Pending Actions
+                                Open Action Items
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
@@ -137,10 +142,11 @@ export default function ManagerDashboard() {
                 </div>
 
                 <Tabs defaultValue="team" className="space-y-6">
-                    <TabsList>
+                    <TabsList className="flex-wrap h-auto">
                         <TabsTrigger value="team">Team Overview</TabsTrigger>
                         <TabsTrigger value="checkins">Recent Check-Ins</TabsTrigger>
                         <TabsTrigger value="risks">Blockers & Risks</TabsTrigger>
+                        <TabsTrigger value="feedback">Feedback Sent ({givenFeedback.length})</TabsTrigger>
                     </TabsList>
 
                     {/* Team Overview */}
@@ -152,7 +158,7 @@ export default function ManagerDashboard() {
                                         <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                                         <h3 className="text-lg font-semibold mb-2">No Team Members</h3>
                                         <p className="text-muted-foreground">
-                                            Team members will appear here once they're assigned to you as their manager.
+                                            Team members appear here once they choose you as their manager during onboarding or in "Edit profile".
                                         </p>
                                     </CardContent>
                                 </Card>
@@ -160,17 +166,15 @@ export default function ManagerDashboard() {
                                 teamMembers.map((member) => (
                                     <Card key={member.id} className="hover:shadow-md transition-shadow">
                                         <CardContent className="py-4">
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-4">
+                                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                                <div className="flex items-center gap-4 min-w-0">
                                                     <Avatar className="h-12 w-12">
                                                         <AvatarImage src={member.avatarUrl} />
-                                                        <AvatarFallback>
-                                                            {member.fullName?.slice(0, 2).toUpperCase() || 'U'}
-                                                        </AvatarFallback>
+                                                        <AvatarFallback>{initials(member.fullName)}</AvatarFallback>
                                                     </Avatar>
-                                                    <div>
-                                                        <h3 className="font-semibold">{member.fullName}</h3>
-                                                        <p className="text-sm text-muted-foreground">{member.email}</p>
+                                                    <div className="min-w-0">
+                                                        <h3 className="font-semibold truncate">{member.fullName}</h3>
+                                                        <p className="text-sm text-muted-foreground truncate">{member.email}</p>
                                                         {member.team && (
                                                             <Badge variant="secondary" className="mt-1 text-xs">
                                                                 {member.team}
@@ -179,13 +183,13 @@ export default function ManagerDashboard() {
                                                     </div>
                                                 </div>
 
-                                                <div className="flex items-center gap-6">
+                                                <div className="flex flex-wrap items-center gap-4">
                                                     {/* Last Check-in Status */}
                                                     <div className="text-right">
                                                         <p className="text-xs text-muted-foreground">Last Check-In</p>
                                                         {member.lastCheckIn ? (
                                                             <p className="text-sm font-medium">
-                                                                {format(new Date(member.lastCheckIn.weekStart), 'MMM d')}
+                                                                {format(parseISO(member.lastCheckIn.weekStart), 'MMM d')}
                                                             </p>
                                                         ) : (
                                                             <p className="text-sm text-warning">None yet</p>
@@ -208,7 +212,15 @@ export default function ManagerDashboard() {
                                                         )}
                                                     </div>
 
-                                                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="gap-2"
+                                                        onClick={() => setFeedbackTarget({ employeeId: member.id, employeeName: member.fullName })}
+                                                    >
+                                                        <MessageSquare className="h-4 w-4" />
+                                                        Give feedback
+                                                    </Button>
                                                 </div>
                                             </div>
                                         </CardContent>
@@ -232,34 +244,50 @@ export default function ManagerDashboard() {
                                     </CardContent>
                                 </Card>
                             ) : (
-                                teamCheckIns.slice(0, 10).map((checkIn) => (
+                                teamCheckIns.slice(0, 20).map((checkIn) => (
                                     <Card key={checkIn.id}>
                                         <CardHeader className="pb-2">
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-3">
+                                            <div className="flex items-center justify-between gap-3">
+                                                <div className="flex items-center gap-3 min-w-0">
                                                     <Avatar className="h-8 w-8">
-                                                        <AvatarFallback>
-                                                            {checkIn.userName?.slice(0, 2).toUpperCase() || 'U'}
-                                                        </AvatarFallback>
+                                                        <AvatarFallback>{initials(checkIn.userName)}</AvatarFallback>
                                                     </Avatar>
-                                                    <div>
-                                                        <CardTitle className="text-base">{checkIn.userName}</CardTitle>
+                                                    <div className="min-w-0">
+                                                        <CardTitle className="text-base truncate">{checkIn.userName}</CardTitle>
                                                         <CardDescription>
-                                                            Week of {format(new Date(checkIn.weekStart), 'MMM d, yyyy')}
+                                                            Week of {format(parseISO(checkIn.weekStart), 'MMM d, yyyy')}
                                                         </CardDescription>
                                                     </div>
                                                 </div>
-                                                {checkIn.blockers && (
-                                                    <Badge variant="outline" className="bg-destructive/10 text-destructive">
-                                                        Has Blockers
-                                                    </Badge>
-                                                )}
+                                                <div className="flex items-center gap-2 shrink-0">
+                                                    {checkIn.blockers && (
+                                                        <Badge variant="outline" className="bg-destructive/10 text-destructive">
+                                                            Has Blockers
+                                                        </Badge>
+                                                    )}
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        className="gap-1"
+                                                        onClick={() => setFeedbackTarget({
+                                                            employeeId: checkIn.userId,
+                                                            employeeName: checkIn.userName,
+                                                            checkInId: checkIn.id,
+                                                        })}
+                                                    >
+                                                        <MessageSquare className="h-4 w-4" />
+                                                        <span className="hidden sm:inline">Respond</span>
+                                                    </Button>
+                                                </div>
                                             </div>
                                         </CardHeader>
-                                        <CardContent>
-                                            <p className="text-sm text-muted-foreground line-clamp-2">
+                                        <CardContent className="space-y-2">
+                                            <p className="text-sm text-muted-foreground whitespace-pre-wrap">
                                                 {checkIn.workSummary}
                                             </p>
+                                            {checkIn.achievements && (
+                                                <p className="text-sm"><span className="font-medium">Wins:</span> {checkIn.achievements}</p>
+                                            )}
                                         </CardContent>
                                     </Card>
                                 ))
@@ -286,14 +314,12 @@ export default function ManagerDashboard() {
                                         <CardHeader className="pb-2">
                                             <div className="flex items-center gap-3">
                                                 <Avatar className="h-8 w-8">
-                                                    <AvatarFallback>
-                                                        {checkIn.userName?.slice(0, 2).toUpperCase() || 'U'}
-                                                    </AvatarFallback>
+                                                    <AvatarFallback>{initials(checkIn.userName)}</AvatarFallback>
                                                 </Avatar>
                                                 <div>
                                                     <CardTitle className="text-base">{checkIn.userName}</CardTitle>
                                                     <CardDescription>
-                                                        {format(new Date(checkIn.weekStart), 'MMM d, yyyy')}
+                                                        {format(parseISO(checkIn.weekStart), 'MMM d, yyyy')}
                                                     </CardDescription>
                                                 </div>
                                             </div>
@@ -315,7 +341,36 @@ export default function ManagerDashboard() {
                             )}
                         </div>
                     </TabsContent>
+
+                    {/* Feedback sent */}
+                    <TabsContent value="feedback">
+                        <div className="grid md:grid-cols-2 gap-4">
+                            {givenFeedback.length === 0 ? (
+                                <Card className="border-dashed md:col-span-2">
+                                    <CardContent className="py-12 text-center">
+                                        <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                                        <h3 className="text-lg font-semibold mb-2">No feedback sent yet</h3>
+                                        <p className="text-muted-foreground">
+                                            Use "Give feedback" on a team member or check-in.
+                                        </p>
+                                    </CardContent>
+                                </Card>
+                            ) : (
+                                givenFeedback.map((item) => (
+                                    <FeedbackCard key={item.id} feedback={item} isEmployee={false} />
+                                ))
+                            )}
+                        </div>
+                    </TabsContent>
                 </Tabs>
+
+                <FeedbackForm
+                    open={feedbackTarget !== null}
+                    onOpenChange={(open) => { if (!open) setFeedbackTarget(null); }}
+                    onSave={handleSendFeedback}
+                    employeeName={feedbackTarget?.employeeName ?? ''}
+                    checkInId={feedbackTarget?.checkInId}
+                />
             </div>
         </div>
     );

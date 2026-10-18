@@ -5,10 +5,15 @@ import { Loader2 } from "lucide-react";
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requiredRole?: 'employee' | 'manager' | 'admin';
+  /** Set on the onboarding route itself so it doesn't redirect to itself. */
+  allowIncompleteProfile?: boolean;
 }
 
-export default function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
-  const { user, userRole, loading } = useAuth();
+const ROLE_LEVEL = { employee: 1, manager: 2, admin: 3 } as const;
+
+// UI-level gating only. Data access is enforced by firestore.rules.
+export default function ProtectedRoute({ children, requiredRole, allowIncompleteProfile }: ProtectedRouteProps) {
+  const { user, userProfile, userRole, loading } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -30,15 +35,13 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
-  // Check role-based access
-  if (requiredRole) {
-    const roleHierarchy = { employee: 1, manager: 2, admin: 3 };
-    const userRoleLevel = roleHierarchy[userRole] || 1;
-    const requiredLevel = roleHierarchy[requiredRole];
+  // New accounts finish onboarding (team + manager) before using the app.
+  if (!allowIncompleteProfile && userProfile && !userProfile.team && userRole !== 'admin') {
+    return <Navigate to="/onboard" replace />;
+  }
 
-    if (userRoleLevel < requiredLevel) {
-      return <Navigate to="/dashboard" replace />;
-    }
+  if (requiredRole && (ROLE_LEVEL[userRole] ?? 1) < ROLE_LEVEL[requiredRole]) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;

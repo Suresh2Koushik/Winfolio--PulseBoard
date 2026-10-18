@@ -1,26 +1,28 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   updateProfile,
   GoogleAuthProvider,
-  signInWithPopup
+  signInWithPopup,
+  sendPasswordResetEmail,
+  sendEmailVerification,
 } from "firebase/auth";
-import { doc, setDoc, getDoc, serverTimestamp, collection, getDocs, query, where } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
+import { FirebaseError } from "firebase/app";
+import { auth } from "@/lib/firebase";
+import { ensureUserProfile } from "@/lib/userProfile";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { BarChart3, Loader2, Eye, EyeOff } from "lucide-react";
 import { z } from "zod";
-import { UserRole } from "@/types";
 
-const emailSchema = z.string().email("Invalid email address").max(255, "Email too long");
+const emailSchema = z.string().trim().email("Invalid email address").max(255, "Email too long");
 const passwordSchema = z.string()
   .min(8, "Password must be at least 8 characters")
   .regex(/[A-Z]/, "Must contain uppercase letter")
@@ -28,75 +30,63 @@ const passwordSchema = z.string()
   .regex(/[0-9]/, "Must contain number");
 const nameSchema = z.string().trim().min(1, "Name is required").max(100, "Name too long");
 
+// Map Firebase error codes to messages that don't leak whether an account exists.
+function authErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof z.ZodError) return error.errors[0].message;
+  if (error instanceof FirebaseError) {
+    switch (error.code) {
+      case "auth/invalid-credential":
+      case "auth/wrong-password":
+      case "auth/user-not-found":
+      case "auth/invalid-email":
+        return "Incorrect email or password.";
+      case "auth/email-already-in-use":
+        return "An account with this email already exists. Try signing in.";
+      case "auth/weak-password":
+        return "Please choose a stronger password.";
+      case "auth/too-many-requests":
+        return "Too many attempts. Please wait a few minutes and try again.";
+      case "auth/popup-closed-by-user":
+      case "auth/cancelled-popup-request":
+        return "Sign-in was cancelled.";
+      case "auth/network-request-failed":
+        return "Network error. Check your connection and try again.";
+    }
+  }
+  return fallback;
+}
+
 const Auth = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user, userProfile, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
-  const [role, setRole] = useState<UserRole>("employee");
-  const [team, setTeam] = useState("");
-  const [managerId, setManagerId] = useState("");
-  const [managers, setManagers] = useState<{ id: string; name: string; email: string }[]>([]);
 
+  // Once signed in and the profile is loaded, send the user to the right place.
   useEffect(() => {
-    // Fetch available managers for signup
-    const fetchManagers = async () => {
-      try {
-        const q = query(
-          collection(db, "users"),
-          where("role", "in", ["manager", "admin"])
-        );
-        const snapshot = await getDocs(q);
-        const managerList = snapshot.docs.map(doc => ({
-          id: doc.id,
-          name: doc.data().fullName || doc.data().email,
-          email: doc.data().email,
-        }));
-        setManagers(managerList);
-      } catch (error) {
-        console.log("No managers available yet");
-      }
-    };
-    fetchManagers();
-  }, []);
-
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (user) => {
-      if (user) {
-        // Check if user has completed onboarding
-        const userDoc = await getDoc(doc(db, "users", user.uid));
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          if (userData.team || userData.role === 'admin') {
-            navigate('/dashboard');
-          } else {
-            navigate('/onboard');
-          }
-        } else {
-          navigate('/onboard');
-        }
-      }
-    });
-
-    return () => unsubscribe();
-  }, [navigate]);
+    if (authLoading || !user || !userProfile) return;
+    const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
+    if (!userProfile.team && userProfile.role !== "admin") {
+      navigate("/onboard", { replace: true });
+    } else {
+      navigate(from && from !== "/auth" ? from : "/dashboard", { replace: true });
+    }
+  }, [authLoading, user, userProfile, navigate, location.state]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      emailSchema.parse(email);
-      await signInWithEmailAndPassword(auth, email, password);
+      const parsedEmail = emailSchema.parse(email);
+      await signInWithEmailAndPassword(auth, parsedEmail, password);
       toast.success("Welcome back!");
-    } catch (error: any) {
-      if (error instanceof z.ZodError) {
-        toast.error(error.errors[0].message);
-      } else {
-        toast.error(error.message || "Failed to sign in");
-      }
+    } catch (error) {
+      toast.error(authErrorMessage(error, "Failed to sign in"));
     } finally {
       setLoading(false);
     }
@@ -107,46 +97,18 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      // Validate inputs
-      nameSchema.parse(fullName);
-      emailSchema.parse(email);
+      const parsedName = nameSchema.parse(fullName);
+      const parsedEmail = emailSchema.parse(email);
       passwordSchema.parse(password);
 
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
+      const { user: newUser } = await createUserWithEmailAndPassword(auth, parsedEmail, password);
+      await updateProfile(newUser, { displayName: parsedName });
+      await ensureUserProfile(newUser, parsedName);
+      sendEmailVerification(newUser).catch((error) => console.warn("Verification email failed:", error));
 
-      // Update display name
-      await updateProfile(user, { displayName: fullName });
-
-      // Get manager name if selected
-      let managerName = "";
-      if (managerId) {
-        const managerDoc = await getDoc(doc(db, "users", managerId));
-        if (managerDoc.exists()) {
-          managerName = managerDoc.data().fullName || managerDoc.data().email;
-        }
-      }
-
-      // Create user profile in Firestore
-      await setDoc(doc(db, "users", user.uid), {
-        email: user.email,
-        fullName,
-        role,
-        team: team || null,
-        managerId: managerId || null,
-        managerName: managerName || null,
-        avatarUrl: null,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-
-      toast.success("Account created successfully!");
-    } catch (error: any) {
-      if (error instanceof z.ZodError) {
-        toast.error(error.errors[0].message);
-      } else {
-        toast.error(error.message || "Failed to create account");
-      }
+      toast.success("Account created! Check your inbox to verify your email.");
+    } catch (error) {
+      toast.error(authErrorMessage(error, "Failed to create account"));
     } finally {
       setLoading(false);
     }
@@ -155,30 +117,32 @@ const Auth = () => {
   const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-
-      // Check if user exists in Firestore
-      const userDoc = await getDoc(doc(db, "users", user.uid));
-      if (!userDoc.exists()) {
-        // Create profile for new Google users
-        await setDoc(doc(db, "users", user.uid), {
-          email: user.email,
-          fullName: user.displayName || "",
-          role: "employee",
-          avatarUrl: user.photoURL,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-      }
-
+      const { user: googleUser } = await signInWithPopup(auth, new GoogleAuthProvider());
+      await ensureUserProfile(googleUser);
       toast.success("Welcome!");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to sign in with Google");
+    } catch (error) {
+      toast.error(authErrorMessage(error, "Failed to sign in with Google"));
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleForgotPassword = async () => {
+    const parsed = emailSchema.safeParse(email);
+    if (!parsed.success) {
+      toast.error("Enter your email address above first.");
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, parsed.data);
+    } catch (error) {
+      // Only surface rate limiting; otherwise stay silent about whether the account exists.
+      if (error instanceof FirebaseError && error.code === "auth/too-many-requests") {
+        toast.error(authErrorMessage(error, ""));
+        return;
+      }
+    }
+    toast.success("If an account exists for that email, a reset link is on its way.");
   };
 
   return (
@@ -213,6 +177,7 @@ const Auth = () => {
                   <Input
                     id="signin-email"
                     type="email"
+                    autoComplete="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@example.com"
@@ -221,11 +186,21 @@ const Auth = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signin-password">Password</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="signin-password">Password</Label>
+                    <button
+                      type="button"
+                      onClick={handleForgotPassword}
+                      className="text-xs text-primary hover:underline"
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
                   <div className="relative">
                     <Input
                       id="signin-password"
                       type={showPassword ? "text" : "password"}
+                      autoComplete="current-password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
@@ -235,6 +210,7 @@ const Auth = () => {
                       type="button"
                       variant="ghost"
                       size="icon"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
                       className="absolute right-0 top-0 h-11 w-11 hover:bg-transparent"
                       onClick={() => setShowPassword(!showPassword)}
                     >
@@ -291,6 +267,7 @@ const Auth = () => {
                   <Label htmlFor="signup-name">Full Name</Label>
                   <Input
                     id="signup-name"
+                    autoComplete="name"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="John Doe"
@@ -303,6 +280,7 @@ const Auth = () => {
                   <Input
                     id="signup-email"
                     type="email"
+                    autoComplete="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@example.com"
@@ -315,6 +293,7 @@ const Auth = () => {
                   <Input
                     id="signup-password"
                     type="password"
+                    autoComplete="new-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
@@ -326,48 +305,9 @@ const Auth = () => {
                   </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label>Role</Label>
-                    <Select value={role} onValueChange={(v) => setRole(v as UserRole)}>
-                      <SelectTrigger className="h-11">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="employee">Employee</SelectItem>
-                        <SelectItem value="manager">Manager</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="team">Team</Label>
-                    <Input
-                      id="team"
-                      value={team}
-                      onChange={(e) => setTeam(e.target.value)}
-                      placeholder="Engineering"
-                      className="h-11"
-                    />
-                  </div>
-                </div>
-
-                {role === "employee" && managers.length > 0 && (
-                  <div className="space-y-2">
-                    <Label>Manager (Optional)</Label>
-                    <Select value={managerId} onValueChange={setManagerId}>
-                      <SelectTrigger className="h-11">
-                        <SelectValue placeholder="Select your manager" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {managers.map((m) => (
-                          <SelectItem key={m.id} value={m.id}>
-                            {m.name} ({m.email})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
+                <p className="text-xs text-muted-foreground">
+                  You'll set your team and manager in the next step. Manager and admin access is granted by your workspace admin.
+                </p>
 
                 <Button type="submit" className="w-full h-11 text-base font-medium" disabled={loading}>
                   {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creating...</> : "Create Account"}

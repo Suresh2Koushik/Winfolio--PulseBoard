@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { Activity, STATUS_OPTIONS, ActivityCategory, ACTIVITY_CATEGORY_OPTIONS } from "@/types";
 import { useUserData } from "@/hooks/useUserData";
 import { useAuth } from "@/contexts/AuthContext";
-import { storage, db } from "@/lib/firebase";
-import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
+import { storage } from "@/lib/firebase";
+import { ref, uploadBytes, deleteObject } from "firebase/storage";
+import { parseISO } from "date-fns";
 import { suggestCategory, getWeekNumber } from "@/utils/categorization";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -19,11 +20,20 @@ import { cn } from "@/lib/utils";
 
 const QUARTERS = ["Q1", "Q2", "Q3", "Q4"];
 const CURRENT_YEAR = new Date().getFullYear();
+const MAX_FILE_BYTES = 10 * 1024 * 1024;
+// Must stay in sync with storage.rules.
+const ACCEPTED_FILES = "image/*,.pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.ppt,.pptx";
+
+// First day of the given quarter, as yyyy-MM-dd.
+function quarterStartDate(year: string | number, quarter: string): string {
+  const index = Math.max(0, QUARTERS.indexOf(quarter));
+  return `${year}-${String(index * 3 + 1).padStart(2, "0")}-01`;
+}
 
 interface ActivityFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (activity: Omit<Activity, "id" | "userId" | "createdAt" | "updatedAt">) => void;
+  onSave: (activity: Omit<Activity, "id" | "userId" | "createdAt" | "updatedAt">) => void | Promise<void>;
   editActivity?: Activity | null;
 }
 
@@ -47,6 +57,7 @@ export function ActivityForm({ open, onOpenChange, onSave, editActivity }: Activ
   const [suggestedCategory, setSuggestedCategory] = useState<ActivityCategory | null>(null);
   const [teamInput, setTeamInput] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [removeAttachment, setRemoveAttachment] = useState(false);
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
@@ -63,7 +74,10 @@ export function ActivityForm({ open, onOpenChange, onSave, editActivity }: Activ
         attachmentUrl: editActivity.attachmentUrl || "",
         praises: editActivity.praises || "",
       });
-      setDateType(editActivity.quarter ? "quarter" : "date");
+      // Every activity stores a quarter; quarter-level entries are the ones dated on the quarter's first day.
+      const isQuarterEntry = !!editActivity.quarter
+        && editActivity.date === quarterStartDate(editActivity.date.slice(0, 4), editActivity.quarter);
+      setDateType(isQuarterEntry ? "quarter" : "date");
     } else {
       setFormData({
         date: new Date().toISOString().split("T")[0],
@@ -81,6 +95,7 @@ export function ActivityForm({ open, onOpenChange, onSave, editActivity }: Activ
     }
     setSuggestedCategory(null);
     setSelectedFile(null);
+    setRemoveAttachment(false);
   }, [editActivity, open]);
 
   useEffect(() => {
@@ -96,63 +111,76 @@ export function ActivityForm({ open, onOpenChange, onSave, editActivity }: Activ
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (file) {
-      if (file.size > 10 * 1024 * 1024) {
+      if (file.size > MAX_FILE_BYTES) {
         toast.error("File size must be less than 10MB");
         return;
       }
       setSelectedFile(file);
+      setRemoveAttachment(false);
     }
   };
 
   const uploadFile = async (): Promise<string | null> => {
     if (!selectedFile || !user) return null;
 
-    setUploading(true);
     try {
-      const fileExt = selectedFile.name.split('.').pop();
+      const fileExt = (selectedFile.name.split('.').pop() || 'bin').replace(/[^a-z0-9]/gi, '').slice(0, 10);
       const fileName = `${Date.now()}.${fileExt}`;
       const filePath = `activities/${user.uid}/${fileName}`;
-      const storageRef = ref(storage, filePath);
-
-      await uploadBytes(storageRef, selectedFile);
+      await uploadBytes(ref(storage, filePath), selectedFile, {
+        contentType: selectedFile.type || undefined,
+      });
       return filePath;
-    } catch (error: any) {
-      toast.error("Failed to upload file");
+    } catch (error) {
       console.error("Upload error:", error);
+      toast.error("Failed to upload file. Allowed: images, PDF, Office documents, text/CSV up to 10MB.");
       return null;
-    } finally {
-      setUploading(false);
     }
   };
+
+  // Only files we uploaded live in our bucket; imported rows may hold external links.
+  const isOwnUpload = (path?: string) => !!path && path.startsWith("activities/");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.title.trim()) return;
+    if (dateType === "quarter" && !formData.quarter) {
+      toast.error("Please choose a quarter");
+      return;
+    }
 
     setUploading(true);
     try {
-      let attachmentUrl = formData.attachmentUrl;
+      const previous = editActivity?.attachmentUrl;
+      let attachmentUrl = removeAttachment ? "" : formData.attachmentUrl;
 
       if (selectedFile) {
-        if (editActivity?.attachmentUrl) {
-          try {
-            await deleteObject(ref(storage, editActivity.attachmentUrl));
-          } catch (e) { console.warn("Failed to delete old attachment", e); }
-        }
-
+        // Upload first; only drop the old file once the new one is safely stored.
         const uploadedPath = await uploadFile();
-        if (uploadedPath) attachmentUrl = uploadedPath;
+        if (!uploadedPath) return;
+        attachmentUrl = uploadedPath;
       }
 
-      onSave({
+      const date = dateType === "quarter"
+        ? quarterStartDate(formData.date.slice(0, 4) || CURRENT_YEAR, formData.quarter)
+        : formData.date;
+
+      await onSave({
         ...formData,
-        weekNumber: getWeekNumber(new Date(formData.date)),
-        attachmentUrl,
-        quarter: dateType === "quarter" ? formData.quarter : undefined
+        title: formData.title.trim(),
+        date,
+        weekNumber: getWeekNumber(parseISO(date)),
+        attachmentUrl: attachmentUrl || undefined,
+        quarter: dateType === "quarter" ? formData.quarter : undefined,
       });
-      onOpenChange(false);
+
+      if (previous && previous !== attachmentUrl && isOwnUpload(previous)) {
+        deleteObject(ref(storage, previous)).catch((err) => console.warn("Failed to delete old attachment", err));
+      }
     } catch (error) {
+      console.error("Save error:", error);
       toast.error("Failed to save activity");
     } finally {
       setUploading(false);
@@ -208,7 +236,7 @@ export function ActivityForm({ open, onOpenChange, onSave, editActivity }: Activ
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <Label htmlFor="year">Year</Label>
-                    <Select value={formData.date ? new Date(formData.date).getFullYear().toString() : CURRENT_YEAR.toString()} onValueChange={(year) => setFormData({ ...formData, date: `${year}-01-01` })}>
+                    <Select value={formData.date ? formData.date.slice(0, 4) : CURRENT_YEAR.toString()} onValueChange={(year) => setFormData({ ...formData, date: quarterStartDate(year, formData.quarter || "Q1") })}>
                       <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {[CURRENT_YEAR - 1, CURRENT_YEAR, CURRENT_YEAR + 1].map((year) => (
@@ -219,7 +247,7 @@ export function ActivityForm({ open, onOpenChange, onSave, editActivity }: Activ
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="quarter">Quarter</Label>
-                    <Select value={formData.quarter} onValueChange={(quarter) => setFormData({ ...formData, quarter })} required>
+                    <Select value={formData.quarter} onValueChange={(quarter) => setFormData({ ...formData, quarter, date: quarterStartDate(formData.date.slice(0, 4) || CURRENT_YEAR, quarter) })} required>
                       <SelectTrigger className="h-11"><SelectValue placeholder="Q1" /></SelectTrigger>
                       <SelectContent>
                         {QUARTERS.map((q) => <SelectItem key={q} value={q}>{q}</SelectItem>)}
@@ -313,11 +341,22 @@ export function ActivityForm({ open, onOpenChange, onSave, editActivity }: Activ
               <Label>Attachment (Evidence)</Label>
               <div className="flex items-center gap-3 p-4 border-2 border-dashed rounded-xl bg-muted/20 hover:bg-muted/30 transition-colors">
                 <div className="flex-1 min-w-0">
-                  {selectedFile || formData.attachmentUrl ? (
+                  {selectedFile || (formData.attachmentUrl && !removeAttachment) ? (
                     <div className="flex items-center gap-2">
                       <FileText className="h-5 w-5 text-primary" />
                       <span className="text-sm font-medium truncate">{selectedFile ? selectedFile.name : "Current file attached"}</span>
-                      <Button type="button" variant="ghost" size="icon" onClick={() => setSelectedFile(null)}><X className="h-4 w-4" /></Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Remove attachment"
+                        onClick={() => {
+                          if (selectedFile) setSelectedFile(null);
+                          else setRemoveAttachment(true);
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
                     </div>
                   ) : (
                     <p className="text-xs text-muted-foreground">Upload screenshots, PDFs, or documents to support your activity (Max 10MB)</p>
@@ -325,9 +364,9 @@ export function ActivityForm({ open, onOpenChange, onSave, editActivity }: Activ
                 </div>
                 <Button type="button" variant="outline" size="sm" onClick={() => document.getElementById('attachment-input')?.click()} className="shrink-0 gap-2">
                   <Upload className="h-4 w-4" />
-                  {selectedFile || formData.attachmentUrl ? "Replace" : "Browse"}
+                  {selectedFile || (formData.attachmentUrl && !removeAttachment) ? "Replace" : "Browse"}
                 </Button>
-                <input id="attachment-input" type="file" className="hidden" onChange={handleFileSelect} />
+                <input id="attachment-input" type="file" accept={ACCEPTED_FILES} className="hidden" onChange={handleFileSelect} />
               </div>
             </div>
           </div>

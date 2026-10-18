@@ -17,6 +17,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Activity } from '@/types';
 import { getWeekNumber, getQuarter } from '@/utils/categorization';
 import { toast } from 'sonner';
+import { parseISO } from 'date-fns';
 
 export function useActivities() {
   const { user } = useAuth();
@@ -75,9 +76,10 @@ export function useActivities() {
     }
 
     try {
-      const date = new Date(activityData.date);
+      const date = parseISO(activityData.date);
       const weekNumber = getWeekNumber(date);
-      const quarter = getQuarter(date);
+      // Respect an explicitly chosen quarter; otherwise derive it from the date.
+      const quarter = activityData.quarter || getQuarter(date);
 
       await addDoc(collection(db, 'activities'), {
         ...activityData,
@@ -104,16 +106,18 @@ export function useActivities() {
     try {
       const activityRef = doc(db, 'activities', id);
 
-      // Recalculate week number and quarter if date changed
+      // Never let identity/audit fields be rewritten from the form.
+      const { id: _id, userId: _userId, createdAt: _createdAt, ...fields } = activityData;
       const updates: Record<string, unknown> = {
-        ...activityData,
+        ...fields,
         updatedAt: serverTimestamp(),
       };
 
+      // Recalculate week number and quarter if date changed
       if (activityData.date) {
-        const date = new Date(activityData.date);
+        const date = parseISO(activityData.date);
         updates.weekNumber = getWeekNumber(date);
-        updates.quarter = getQuarter(date);
+        updates.quarter = activityData.quarter || getQuarter(date);
       }
 
       await updateDoc(activityRef, updates);
