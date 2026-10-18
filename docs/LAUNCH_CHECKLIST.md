@@ -1,20 +1,36 @@
 # PulseBoard launch checklist
 
-Firebase project: `ai-support-agnet` (from `.firebaserc`). Last updated 2026-10-18.
+Firebase project: `pulseboard--project` (from `.firebaserc`), Firestore in `asia-south1`.
+Live at **https://pulseboard--project.web.app**. Last updated 2026-10-18.
+
+## Launch status (2026-10-18)
+
+| Item | Status |
+|---|---|
+| Firestore rules + indexes | Deployed |
+| Hosting | Deployed |
+| Email/Password sign-in | Enabled; verified live |
+| Live security checks (signed-out access, self-promotion, listing users) | Passed |
+| Google sign-in | Enabled in console; not yet tested live |
+| Storage (attachments) | **Not enabled.** Needs the Blaze plan. Until then, uploading an attachment shows an error; everything else works. After enabling it, run `npx firebase deploy --only storage`. |
+| Scheduled backups | Not enabled (Blaze plan) |
+| First admin | **To do**: section 3 |
+
+The previous project, `ai-support-agnet`, was not modified; its config is kept locally in `.env.ai-support-agnet.backup` (not in git).
 
 ## 1. Before deploying (Firebase console)
 
 - [ ] **Authentication → Sign-in method:** Email/Password enabled. Google enabled, with a support email set.
-- [ ] **Authentication → Settings → Authorized domains:** includes `ai-support-agnet.web.app`, `ai-support-agnet.firebaseapp.com`, and any custom domain.
+- [ ] **Authentication → Settings → Authorized domains:** includes `pulseboard--project.web.app`, `pulseboard--project.firebaseapp.com`, and any custom domain.
 - [ ] **Authentication → Templates:** set the sender name and check the verification and password-reset emails.
-- [ ] **Storage:** the default bucket exists (`ai-support-agnet.firebasestorage.app`). Buckets created after Oct 2024 need the Blaze plan, so confirm the billing plan.
+- [ ] **Storage:** upgrade to Blaze, then Build → Storage → Get started, then `npx firebase deploy --only storage`.
 - [ ] **Firestore:** database exists in Native mode.
 
 ## 2. Deploy
 
 ```bash
 npx firebase login                       # interactive; opens a browser
-npx firebase use ai-support-agnet
+npx firebase use pulseboard--project
 npm run build
 npx firebase deploy --only firestore:rules,firestore:indexes,storage,hosting
 ```
@@ -30,7 +46,7 @@ npx firebase deploy --only firestore:rules,firestore:indexes,storage,hosting
 3. Create document `managerDirectory/<your uid>` with field `fullName` (string) set to your name.
 4. Reload the app. **Admin** appears in the sidebar.
 
-## 4. Clean up existing data (if the project already had users)
+## 4. Clean up existing data (only if migrating users from another project)
 
 These points come from the old code's behaviour. I couldn't see the live database, so check them rather than assume.
 
