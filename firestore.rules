@@ -1,0 +1,378 @@
+rules_version = '2';
+
+// PulseBoard Firestore security rules.
+//
+// Access model
+//   - Every document belongs to one user (userId / employeeId).
+//   - Roles live in users/{uid}.role and can only be changed by an admin.
+//   - A manager can read a report's check-ins and goals. Those documents carry
+//     a denormalised `managerId`, which must equal the owner's current
+//     users/{uid}.managerId at write time, so it cannot be forged.
+//   - Admins can read everything (for platform analytics) and manage roles.
+//
+// Tests: tests/rules/*.test.ts (npm run test:rules)
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- helpers ----------
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    function userDoc(id) {
+      return get(/databases/$(database)/documents/users/$(id));
+    }
+
+    function myRole() {
+      return userDoc(uid()).data.get('role', 'employee');
+    }
+
+    function isAdmin() {
+      return signedIn() && exists(/databases/$(database)/documents/users/$(uid()))
+        && myRole() == 'admin';
+    }
+
+    function isManagerOrAdmin() {
+      return signedIn() && exists(/databases/$(database)/documents/users/$(uid()))
+        && myRole() in ['manager', 'admin'];
+    }
+
+    // The manager currently assigned to the signed-in user (or null).
+    function myManagerId() {
+      return userDoc(uid()).data.get('managerId', null);
+    }
+
+    // True when the signed-in user is the assigned manager of `employeeId`.
+    function managesUser(employeeId) {
+      return exists(/databases/$(database)/documents/users/$(employeeId))
+        && userDoc(employeeId).data.get('managerId', null) == uid();
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function changed() {
+      return incoming().diff(existing()).affectedKeys();
+    }
+
+    function isString(v, maxLen) {
+      return v is string && v.size() <= maxLen;
+    }
+
+    function isOptString(data, field, maxLen) {
+      return !(field in data) || data[field] == null || isString(data[field], maxLen);
+    }
+
+    function isStringList(v, maxItems, maxLen) {
+      return v is list && v.size() <= maxItems
+        && (v.size() == 0 || v[0] is string);
+    }
+
+    // yyyy-MM-dd
+    function isDateString(v) {
+      return v is string && v.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+    }
+
+    function createdNow() {
+      return incoming().createdAt == request.time;
+    }
+
+    function createdAtUnchanged() {
+      return !('createdAt' in changed());
+    }
+
+    // ---------- users ----------
+
+    match /users/{userId} {
+      function validProfileShape(data) {
+        return data.keys().hasOnly([
+            'email', 'fullName', 'avatarUrl', 'role', 'team',
+            'managerId', 'managerName', 'createdAt', 'updatedAt'])
+          && isString(data.fullName, 100)
+          && data.role in ['employee', 'manager', 'admin']
+          && isOptString(data, 'team', 100)
+          && isOptString(data, 'avatarUrl', 2048)
+          && isOptString(data, 'managerName', 100)
+          && (!('managerId' in data) || data.managerId == null || data.managerId is string);
+      }
+
+      // A manager reference must point at someone listed in the manager directory,
+      // and never at yourself.
+      function validManagerRef(data) {
+        return !('managerId' in changed())
+          || !('managerId' in data) || data.managerId == null
+          || (data.managerId != userId
+              && exists(/databases/$(database)/documents/managerDirectory/$(data.managerId)));
+      }
+
+      allow get: if signedIn() && (
+        request.auth.uid == userId
+        || resource.data.managerId == request.auth.uid
+        || isAdmin()
+      );
+
+      // Managers may list their direct reports; admins may list everyone.
+      allow list: if signedIn() && (
+        resource.data.managerId == request.auth.uid || isAdmin()
+      );
+
+      // Self-registration always starts as an employee with no manager.
+      allow create: if signedIn() && uid() == userId
+        && validProfileShape(incoming())
+        && incoming().role == 'employee'
+        && incoming().get('managerId', null) == null
+        && incoming().email == request.auth.token.email
+        && createdNow();
+
+      // Users edit their own profile but never their role, email or createdAt.
+      allow update: if signedIn() && uid() == userId
+        && validProfileShape(incoming())
+        && !changed().hasAny(['role', 'email', 'createdAt'])
+        && validManagerRef(incoming());
+
+      // Admins manage roles and reporting lines for anyone.
+      allow update: if isAdmin()
+        && validProfileShape(incoming())
+        && !changed().hasAny(['email', 'createdAt'])
+        && validManagerRef(incoming());
+
+      allow delete: if isAdmin() && uid() != userId;
+    }
+
+    // Public-to-members list of people who can be chosen as a manager.
+    // Holds names only (no emails), written by admins when they grant a role.
+    match /managerDirectory/{managerId} {
+      allow read: if signedIn();
+      allow create, update: if isAdmin()
+        && incoming().keys().hasOnly(['fullName', 'team', 'updatedAt'])
+        && isString(incoming().fullName, 100)
+        && isOptString(incoming(), 'team', 100);
+      allow delete: if isAdmin();
+    }
+
+    // ---------- personal data: owner only (+ admin read) ----------
+
+    match /activities/{activityId} {
+      function validActivity(data) {
+        return data.keys().hasOnly([
+            'userId', 'date', 'weekNumber', 'quarter', 'title', 'description',
+            'category', 'teams', 'impactNotes', 'status', 'attachmentUrl',
+            'praises', 'createdAt', 'updatedAt'])
+          && isDateString(data.date)
+          && data.weekNumber is int && data.weekNumber >= 1 && data.weekNumber <= 53
+          && isOptString(data, 'quarter', 2)
+          && isString(data.title, 200)
+          && isOptString(data, 'description', 5000)
+          && isString(data.category, 100)
+          && isStringList(data.teams, 50, 100)
+          && isOptString(data, 'impactNotes', 5000)
+          && data.status in ['Not Started', 'In Progress', 'Done', 'Blocked']
+          && isOptString(data, 'attachmentUrl', 2048)
+          && isOptString(data, 'praises', 2000);
+      }
+
+      allow read: if signedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if signedIn() && incoming().userId == uid()
+        && validActivity(incoming()) && createdNow();
+      allow update: if signedIn() && existing().userId == uid()
+        && incoming().userId == uid()
+        && validActivity(incoming()) && createdAtUnchanged();
+      allow delete: if signedIn() && existing().userId == uid();
+    }
+
+    match /userCategories/{categoryId} {
+      function validCategory(data) {
+        return data.keys().hasOnly(['userId', 'name', 'emoji', 'color', 'keywords', 'createdAt', 'updatedAt'])
+          && isString(data.name, 100)
+          && isOptString(data, 'emoji', 16)
+          && isOptString(data, 'color', 64)
+          && (!('keywords' in data) || isStringList(data.keywords, 100, 100));
+      }
+
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create: if signedIn() && incoming().userId == uid() && validCategory(incoming());
+      allow update: if signedIn() && existing().userId == uid()
+        && incoming().userId == uid() && validCategory(incoming());
+      allow delete: if signedIn() && existing().userId == uid();
+    }
+
+    match /userTeams/{teamId} {
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create: if signedIn() && incoming().userId == uid()
+        && incoming().keys().hasOnly(['userId', 'name', 'createdAt'])
+        && isString(incoming().name, 100);
+      allow delete: if signedIn() && existing().userId == uid();
+    }
+
+    // ---------- shared with the owner's manager ----------
+
+    match /checkIns/{checkInId} {
+      function validCheckIn(data) {
+        return data.keys().hasOnly([
+            'userId', 'managerId', 'weekStart', 'weekEnd', 'workSummary',
+            'achievements', 'blockers', 'supportNeeded', 'linkedGoalIds',
+            'categories', 'createdAt', 'updatedAt'])
+          && isDateString(data.weekStart)
+          && isDateString(data.weekEnd)
+          && isString(data.workSummary, 10000)
+          && isOptString(data, 'achievements', 10000)
+          && isOptString(data, 'blockers', 10000)
+          && isOptString(data, 'supportNeeded', 10000)
+          && isStringList(data.linkedGoalIds, 100, 200)
+          && isStringList(data.categories, 50, 100)
+          // managerId must mirror the author's real manager.
+          && data.get('managerId', null) == myManagerId();
+      }
+
+      allow read: if signedIn() && (
+        resource.data.userId == request.auth.uid
+        || resource.data.managerId == request.auth.uid
+        || isAdmin()
+      );
+      allow create: if signedIn() && incoming().userId == uid()
+        && validCheckIn(incoming()) && createdNow();
+      allow update: if signedIn() && existing().userId == uid()
+        && incoming().userId == uid()
+        && validCheckIn(incoming()) && createdAtUnchanged();
+      allow delete: if signedIn() && existing().userId == uid();
+    }
+
+    match /goals/{goalId} {
+      function validGoal(data) {
+        return data.keys().hasOnly([
+            'userId', 'managerId', 'title', 'description', 'priority',
+            'startDate', 'endDate', 'status', 'progress', 'linkedCheckInIds',
+            'createdAt', 'updatedAt'])
+          && isString(data.title, 200)
+          && isOptString(data, 'description', 5000)
+          && data.priority in ['low', 'medium', 'high', 'critical']
+          && data.status in ['on_track', 'at_risk', 'completed', 'behind']
+          && isDateString(data.startDate)
+          && isDateString(data.endDate)
+          && data.progress is number && data.progress >= 0 && data.progress <= 100
+          && isStringList(data.linkedCheckInIds, 500, 200)
+          && data.get('managerId', null) == myManagerId();
+      }
+
+      allow read: if signedIn() && (
+        resource.data.userId == request.auth.uid
+        || resource.data.managerId == request.auth.uid
+        || isAdmin()
+      );
+      allow create: if signedIn() && incoming().userId == uid()
+        && validGoal(incoming()) && createdNow();
+      allow update: if signedIn() && existing().userId == uid()
+        && incoming().userId == uid()
+        && validGoal(incoming()) && createdAtUnchanged();
+      allow delete: if signedIn() && existing().userId == uid();
+    }
+
+    // ---------- manager -> employee ----------
+
+    match /feedback/{feedbackId} {
+      allow read: if signedIn() && (
+        resource.data.employeeId == request.auth.uid
+        || resource.data.managerId == request.auth.uid
+        || isAdmin()
+      );
+
+      // Only the employee's own manager (or an admin) may send feedback.
+      allow create: if isManagerOrAdmin()
+        && incoming().keys().hasOnly([
+            'checkInId', 'managerId', 'managerName', 'employeeId',
+            'employeeName', 'content', 'acknowledged', 'createdAt'])
+        && incoming().managerId == uid()
+        && incoming().employeeId is string && incoming().employeeId != uid()
+        && (managesUser(incoming().employeeId) || isAdmin())
+        && isString(incoming().content, 5000)
+        && isString(incoming().managerName, 100)
+        && isString(incoming().employeeName, 100)
+        && isOptString(incoming(), 'checkInId', 200)
+        && incoming().acknowledged == false
+        && createdNow();
+
+      // The employee can only acknowledge.
+      allow update: if signedIn() && existing().employeeId == uid()
+        && changed().hasOnly(['acknowledged', 'acknowledgedAt'])
+        && incoming().acknowledged == true
+        && incoming().acknowledgedAt == request.time;
+
+      // The author can edit the text.
+      allow update: if signedIn() && existing().managerId == uid()
+        && changed().hasOnly(['content'])
+        && isString(incoming().content, 5000);
+
+      allow delete: if signedIn() && (existing().managerId == uid() || isAdmin());
+    }
+
+    match /actionItems/{itemId} {
+      allow read: if signedIn() && (
+        resource.data.employeeId == request.auth.uid
+        || resource.data.assignedById == request.auth.uid
+        || isAdmin()
+      );
+
+      allow create: if isManagerOrAdmin()
+        && incoming().keys().hasOnly([
+            'feedbackId', 'employeeId', 'assignedById', 'title',
+            'description', 'dueDate', 'status', 'createdAt'])
+        && incoming().assignedById == uid()
+        && incoming().employeeId is string && incoming().employeeId != uid()
+        && (managesUser(incoming().employeeId) || isAdmin())
+        && isString(incoming().title, 300)
+        && isOptString(incoming(), 'description', 5000)
+        && (!('dueDate' in incoming()) || incoming().dueDate == null || isDateString(incoming().dueDate))
+        && isOptString(incoming(), 'feedbackId', 200)
+        && incoming().status == 'open'
+        && createdNow();
+
+      // The employee updates progress only.
+      allow update: if signedIn() && existing().employeeId == uid()
+        && changed().hasOnly(['status', 'completedAt'])
+        && incoming().status in ['open', 'in_progress', 'completed', 'cancelled'];
+
+      // The assigner can edit the item itself.
+      allow update: if signedIn() && existing().assignedById == uid()
+        && changed().hasOnly(['title', 'description', 'dueDate', 'status', 'completedAt'])
+        && incoming().status in ['open', 'in_progress', 'completed', 'cancelled'];
+
+      allow delete: if signedIn() && (existing().assignedById == uid() || isAdmin());
+    }
+
+    // ---------- platform ----------
+
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if signedIn() && incoming().userId == uid()
+        && incoming().keys().hasOnly([
+            'userId', 'userName', 'actionType', 'entityType', 'entityId',
+            'details', 'createdAt'])
+        && isString(incoming().actionType, 64)
+        && isString(incoming().entityType, 64)
+        && createdNow();
+      // Append-only.
+      allow update, delete: if false;
+    }
+
+    match /changeLogs/{logId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // Deny everything else.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
