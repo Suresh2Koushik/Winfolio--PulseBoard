@@ -130,6 +130,57 @@ test.describe.serial("PulseBoard core workflows", () => {
     await expect(alice.getByText("Launch partner integrations").first()).toBeVisible();
   });
 
+  test("employee attaches evidence to an activity, then removes it", async () => {
+    await alice.goto("/dashboard?tab=activities");
+    const card = alice.locator(".card-glass", { has: alice.getByRole("heading", { name: "Shipped onboarding revamp" }) });
+    await card.getByRole("button").filter({ has: alice.locator("svg.lucide-pencil") }).click();
+
+    const dialog = alice.getByRole("dialog");
+    // 1x1 transparent PNG
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
+      "base64",
+    );
+    await dialog.locator("#attachment-input").setInputFiles({ name: "evidence.png", mimeType: "image/png", buffer: png });
+    await expect(dialog.getByText("evidence.png")).toBeVisible();
+    await dialog.getByRole("button", { name: /Update Achievement/ }).click();
+    await expect(alice.getByText("Activity updated successfully")).toBeVisible();
+    await expect(card.getByRole("button", { name: /View Attachment/ })).toBeVisible();
+
+    await card.getByRole("button").filter({ has: alice.locator("svg.lucide-pencil") }).click();
+    await dialog.getByRole("button", { name: "Remove attachment" }).click();
+    await dialog.getByRole("button", { name: /Update Achievement/ }).click();
+    await expect(card.getByRole("button", { name: /View Attachment/ })).toHaveCount(0);
+  });
+
+  test("employee exports to Excel, imports the template, and generates a PDF", async () => {
+    await alice.goto("/dashboard?tab=activities");
+
+    const exported = alice.waitForEvent("download");
+    await alice.getByRole("button", { name: "Export" }).click();
+    expect((await exported).suggestedFilename()).toMatch(/^work-activities-.*\.xlsx$/);
+
+    const templateDownload = alice.waitForEvent("download");
+    await alice.getByRole("button", { name: "Template" }).click();
+    const template = await templateDownload;
+    const templatePath = await template.path();
+
+    await alice.getByRole("button", { name: "Import" }).click();
+    await alice.locator("#file-upload").setInputFiles({
+      name: "pulseboard-import-template.xlsx",
+      mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      buffer: (await import("node:fs")).readFileSync(templatePath!),
+    });
+    await expect(alice.getByText("1 activities imported successfully!")).toBeVisible();
+    await alice.getByRole("button", { name: "Done" }).click();
+    await expect(alice.getByRole("heading", { name: "Customer Success Workshop" })).toBeVisible();
+
+    await alice.goto("/dashboard?tab=review");
+    const pdf = alice.waitForEvent("download");
+    await alice.getByRole("button", { name: /Generate Performance PDF/ }).click();
+    expect((await pdf).suggestedFilename()).toMatch(/\.pdf$/);
+  });
+
   test("admin promotes Bob to manager", async () => {
     await signIn(admin, ADMIN.email);
     await admin.goto("/admin");

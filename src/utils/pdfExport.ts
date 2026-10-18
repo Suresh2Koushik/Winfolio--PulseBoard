@@ -1,5 +1,5 @@
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import { autoTable } from 'jspdf-autotable';
 import { format, parseISO } from 'date-fns';
 import {
     CheckIn,
@@ -9,10 +9,9 @@ import {
     UserProfile
 } from '@/types';
 
-// Add type definition for jspdf-autotable
+// jspdf-autotable records where the last table ended
 declare module 'jspdf' {
     interface jsPDF {
-        autoTable: (options: import("jspdf-autotable").UserOptions) => jsPDF;
         lastAutoTable: { finalY: number };
     }
 }
@@ -95,7 +94,7 @@ export const exportPerformanceReport = (
             c.blockers ? 'Has Blockers' : 'Completed'
         ]);
 
-        doc.autoTable({
+        autoTable(doc, {
             startY: currentY + 5,
             head: [['Week', 'Summary', 'Achievements', 'Status']],
             body: tableData,
@@ -131,7 +130,7 @@ export const exportPerformanceReport = (
             format(parseISO(g.endDate), 'MMM d, yyyy')
         ]);
 
-        doc.autoTable({
+        autoTable(doc, {
             startY: currentY + 5,
             head: [['Goal', 'Status', 'Progress', 'Deadline']],
             body: goalData,
@@ -175,7 +174,7 @@ export const exportActivityHistory = (activities: Activity[], userName: string) 
         a.teams.join(', ')
     ]);
 
-    doc.autoTable({
+    autoTable(doc, {
         startY: 45,
         head: [['Date', 'Title', 'Category', 'Status', 'Teams']],
         body: tableData,
