@@ -1,0 +1,195 @@
+import { test, expect, Page, Browser } from "@playwright/test";
+import { resetEmulators, seedAdmin } from "./emulator";
+
+// One story across three people, in order:
+//   employee signs up -> logs work -> admin promotes a manager -> employee picks that
+//   manager -> manager reviews and gives feedback -> employee acknowledges and completes it.
+
+const PASSWORD = "Passw0rd!x";
+const ADMIN = { email: "admin@pulseboard.test", name: "Ada Admin" };
+const ALICE = { email: "alice@pulseboard.test", name: "Alice Employee" };
+const BOB = { email: "bob@pulseboard.test", name: "Bob Manager" };
+
+const year = new Date().getFullYear();
+
+// Errors the app logs or throws are collected and asserted empty at the end, so a
+// permission-denied listener or crash can't hide behind a passing UI check.
+const appErrors: string[] = [];
+
+async function newPage(browser: Browser, label: string): Promise<Page> {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  page.on("pageerror", (err) => appErrors.push(`[${label}] uncaught: ${err.message}`));
+  page.on("console", (msg) => {
+    if (msg.type() !== "error") return;
+    const text = msg.text();
+    if (/permission|insufficient|Missing or insufficient|FirebaseError|Uncaught/i.test(text)) {
+      appErrors.push(`[${label}] console: ${text.slice(0, 300)}`);
+    }
+  });
+  return page;
+}
+
+async function signUp(page: Page, person: { email: string; name: string }, team: string) {
+  await page.goto("/auth");
+  await page.getByRole("tab", { name: "Sign Up" }).click();
+  await page.locator("#signup-name").fill(person.name);
+  await page.locator("#signup-email").fill(person.email);
+  await page.locator("#signup-password").fill(PASSWORD);
+  await page.getByRole("button", { name: "Create Account" }).click();
+
+  // New accounts are sent to onboarding.
+  await expect(page).toHaveURL(/\/onboard$/);
+  await page.locator("#team").fill(team);
+  await page.getByRole("button", { name: /Next Step/ }).click();
+  await page.getByRole("button", { name: /Complete Setup/ }).click();
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(page.getByRole("heading", { name: new RegExp(`Welcome back, ${person.name.split(" ")[0]}`) })).toBeVisible();
+}
+
+async function signIn(page: Page, email: string) {
+  await page.goto("/auth");
+  await page.locator("#signin-email").fill(email);
+  await page.locator("#signin-password").fill(PASSWORD);
+  await page.locator("form").getByRole("button", { name: "Sign In" }).click();
+  await expect(page).toHaveURL(/\/dashboard$/);
+}
+
+async function chooseOption(page: Page, trigger: ReturnType<Page["locator"]>, option: string | RegExp) {
+  await trigger.click();
+  await page.getByRole("option", { name: option }).click();
+}
+
+test.describe.serial("PulseBoard core workflows", () => {
+  let alice: Page;
+  let bob: Page;
+  let admin: Page;
+
+  test.beforeAll(async ({ browser }) => {
+    await resetEmulators();
+    await seedAdmin(ADMIN.email, PASSWORD, ADMIN.name);
+    alice = await newPage(browser, "alice");
+    bob = await newPage(browser, "bob");
+    admin = await newPage(browser, "admin");
+  });
+
+  test("visitors are sent to sign in", async () => {
+    await alice.goto("/dashboard");
+    await expect(alice).toHaveURL(/\/auth$/);
+  });
+
+  test("employee signs up, onboards, and cannot reach manager/admin pages", async () => {
+    await signUp(alice, ALICE, "Engineering");
+    await signUp(bob, BOB, "Engineering");
+
+    await alice.goto("/admin");
+    await expect(alice).toHaveURL(/\/dashboard$/);
+    await alice.goto("/manager");
+    await expect(alice).toHaveURL(/\/dashboard$/);
+  });
+
+  test("employee logs a dated activity and a quarter activity", async () => {
+    await alice.goto("/dashboard");
+    await alice.getByRole("button", { name: "Add Work Activity" }).click();
+    const dialog = alice.getByRole("dialog");
+    await dialog.locator("#title").fill("Shipped onboarding revamp");
+    await dialog.getByRole("button", { name: /Capture Achievement/ }).click();
+    await expect(alice.getByText("Activity added successfully")).toBeVisible();
+    await expect(alice.getByRole("heading", { name: "Shipped onboarding revamp" })).toBeVisible();
+
+    // Quarter-level entry must stay in the chosen quarter (previously forced into Q1).
+    await alice.getByRole("button", { name: "Add Work Activity" }).click();
+    await dialog.getByText("Quarter", { exact: true }).click();
+    await chooseOption(alice, dialog.getByRole("combobox").nth(1), "Q3");
+    await dialog.locator("#title").fill("Q3 partner programme");
+    await dialog.getByRole("button", { name: /Capture Achievement/ }).click();
+    await expect(alice.getByText("Activity added successfully").first()).toBeVisible();
+
+    await alice.getByRole("tab", { name: "Quarter" }).click();
+    const quarterSelect = alice.getByRole("tabpanel").getByRole("combobox").nth(1);
+    await chooseOption(alice, quarterSelect, `Q3 ${year}`);
+    await expect(alice.getByRole("heading", { name: "Q3 partner programme" })).toBeVisible();
+  });
+
+  test("employee submits a check-in with optional fields left blank", async () => {
+    await alice.goto("/check-ins");
+    await alice.getByRole("button", { name: "New Check-In" }).click();
+    await alice.locator("#workSummary").fill("Finished the onboarding revamp and started partner work.");
+    await alice.locator("#blockers").fill("Waiting on API keys from partner");
+    await alice.getByRole("button", { name: "Submit Check-In" }).click();
+    await expect(alice.getByText("Check-in submitted!")).toBeVisible();
+    await expect(alice.getByText("Finished the onboarding revamp").first()).toBeVisible();
+  });
+
+  test("employee creates a goal", async () => {
+    await alice.goto("/goals");
+    await alice.getByRole("button", { name: "New Goal" }).click();
+    await alice.getByRole("dialog").locator("#title").fill("Launch partner integrations");
+    await alice.getByRole("dialog").getByRole("button", { name: "Create Goal" }).click();
+    await expect(alice.getByText("Goal created!")).toBeVisible();
+    await expect(alice.getByText("Launch partner integrations").first()).toBeVisible();
+  });
+
+  test("admin promotes Bob to manager", async () => {
+    await signIn(admin, ADMIN.email);
+    await admin.goto("/admin");
+    const row = admin.getByRole("row", { name: new RegExp(BOB.email) });
+    await chooseOption(admin, row.getByRole("combobox", { name: `Role for ${BOB.name}` }), "Manager");
+    await expect(admin.getByText(`${BOB.name} is now a manager`)).toBeVisible();
+  });
+
+  test("employee picks Bob as manager from Edit profile", async () => {
+    await alice.goto("/onboard");
+    await chooseOption(alice, alice.getByRole("combobox"), BOB.name);
+    await alice.getByRole("button", { name: /Next Step/ }).click();
+    await alice.getByRole("button", { name: /Complete Setup/ }).click();
+    await expect(alice).toHaveURL(/\/dashboard$/);
+  });
+
+  test("manager sees the report's history and sends feedback with an action item", async () => {
+    await bob.reload();
+    await bob.goto("/manager");
+    await expect(bob.getByRole("heading", { name: "Manager Dashboard" })).toBeVisible();
+    await expect(bob.getByRole("heading", { name: ALICE.name })).toBeVisible();
+
+    // The check-in Alice wrote before choosing Bob is re-tagged and becomes visible.
+    await bob.getByRole("tab", { name: "Recent Check-Ins" }).click();
+    await expect(bob.getByText("Finished the onboarding revamp")).toBeVisible();
+    await bob.getByRole("tab", { name: "Blockers & Risks" }).click();
+    await expect(bob.getByText("Waiting on API keys from partner")).toBeVisible();
+
+    await bob.getByRole("tab", { name: "Team Overview" }).click();
+    await bob.getByRole("button", { name: "Give feedback" }).click();
+    const dialog = bob.getByRole("dialog");
+    await dialog.locator("#feedback").fill("Great progress on onboarding. Let's unblock the partner keys.");
+    await dialog.getByPlaceholder("Action item title").fill("Email partner about API keys");
+    await dialog.getByRole("button", { name: /Send Feedback/ }).click();
+    await expect(bob.getByText("Feedback sent")).toBeVisible();
+
+    await bob.getByRole("tab", { name: /Feedback Sent/ }).click();
+    await expect(bob.getByText(`To ${ALICE.name}`)).toBeVisible();
+  });
+
+  test("employee acknowledges feedback and completes the action item", async () => {
+    await alice.goto("/dashboard");
+    await expect(alice.getByText("Great progress on onboarding.")).toBeVisible();
+    await alice.getByRole("button", { name: "Acknowledge Feedback" }).click();
+    await expect(alice.getByText("Feedback acknowledged")).toBeVisible();
+
+    const item = alice.getByText("Email partner about API keys");
+    await expect(item).toBeVisible();
+    await item.locator("xpath=ancestor::div[contains(@class,'rounded-lg')][1]").getByRole("button").click();
+    await expect(alice.getByText("Action item completed")).toBeVisible();
+  });
+
+  test("no permission errors or crashes were logged during the journey", async () => {
+    expect(appErrors).toEqual([]);
+  });
+
+  test("Reviews link opens the reviews tab", async () => {
+    await alice.goto("/dashboard");
+    await alice.getByRole("button", { name: "Reviews" }).first().click();
+    await expect(alice).toHaveURL(/tab=review/);
+    await expect(alice.getByText("Performance Review Report")).toBeVisible();
+  });
+});
