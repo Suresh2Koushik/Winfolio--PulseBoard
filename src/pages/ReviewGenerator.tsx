@@ -1,208 +1,220 @@
-import { useState } from "react";
-import { Activity } from "@/types";
-import { categoryDisplay } from "@/lib/categories";
-import { useUserData } from "@/hooks/useUserData";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useMemo, useState } from "react";
+import { Activity, CheckIn } from "@/types";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import {
-  Sparkles,
-  Download,
-  FileText,
-  Calendar,
-  CheckCircle2,
-  TrendingUp,
-  AlertCircle
-} from "lucide-react";
-import { format, startOfMonth, endOfMonth, isWithinInterval, parseISO, subMonths } from "date-fns";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { BookOpen, Download, FileText, Loader2, NotebookPen, Sparkles } from "lucide-react";
+import { format, parseISO, startOfQuarter } from "date-fns";
 import { toast } from "sonner";
-import { exportToPDF } from "@/utils/pdfExport";
+import { useAuth } from "@/contexts/AuthContext";
+import { useUserData } from "@/hooks/useUserData";
+import { categoryDisplay } from "@/lib/categories";
+import { buildReview, customPeriod, hasImpact, periodOptions, ReviewPeriod } from "@/lib/review";
 
 interface ReviewGeneratorProps {
   activities: Activity[];
+  checkIns: CheckIn[];
 }
 
-export function ReviewGenerator({ activities }: ReviewGeneratorProps) {
-  const [selectedMonth, setSelectedMonth] = useState(() => format(new Date(), "yyyy-MM"));
-  const [isGenerating, setIsGenerating] = useState(false);
+const GROUP_LABELS = { quarter: "Quarters", month: "Months", half: "Half-years", year: "Years" } as const;
+const CUSTOM = "custom";
+
+export function ReviewGenerator({ activities, checkIns }: ReviewGeneratorProps) {
+  const { userProfile, user } = useAuth();
   const { categories } = useUserData();
+  const options = useMemo(() => periodOptions(), []);
+  const [periodId, setPeriodId] = useState<string>(options.quarter[0].id);
+  const [customFrom, setCustomFrom] = useState(format(startOfQuarter(new Date()), "yyyy-MM-dd"));
+  const [customTo, setCustomTo] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [isGenerating, setIsGenerating] = useState(false);
 
-  // Step back from the 1st of this month so the 29th-31st can't skip or repeat months.
-  const months = Array.from({ length: 12 }, (_, i) => {
-    const d = subMonths(startOfMonth(new Date()), i);
-    return {
-      label: format(d, "MMMM yyyy"),
-      value: format(d, "yyyy-MM"),
-    };
-  });
+  const allPeriods = useMemo(
+    () => [...options.quarter, ...options.month, ...options.half, ...options.year],
+    [options],
+  );
+  const period: ReviewPeriod | null = periodId === CUSTOM
+    ? customPeriod(customFrom, customTo)
+    : allPeriods.find((p) => p.id === periodId) ?? null;
 
-  const monthStart = startOfMonth(parseISO(`${selectedMonth}-01`));
-  const monthEnd = endOfMonth(monthStart);
-
-  const filteredActivities = activities.filter(activity => {
-    const activityDate = parseISO(activity.date);
-    return isWithinInterval(activityDate, { start: monthStart, end: monthEnd });
-  });
-
-  const stats = {
-    total: filteredActivities.length,
-    completed: filteredActivities.filter(a => a.status === 'Done').length,
-    impactful: filteredActivities.filter(a => a.impactNotes?.length > 0).length,
-    categories: filteredActivities.reduce((acc, a) => {
-      acc[a.category] = (acc[a.category] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>)
-  };
-
-  const currentMonthLabel = months.find(m => m.value === selectedMonth)?.label || "Selected Month";
+  const review = useMemo(
+    () => (period ? buildReview(activities, checkIns, period) : null),
+    [activities, checkIns, period],
+  );
 
   const handleExport = async () => {
-    if (filteredActivities.length === 0) {
-      toast.error("No activities found for this period");
-      return;
-    }
-
+    if (!review || !period || review.wins.length === 0) return;
     setIsGenerating(true);
     try {
-      await exportToPDF(filteredActivities, currentMonthLabel);
-      toast.success("Performance report generated!");
+      const { exportReviewPdf } = await import("@/utils/pdfExport");
+      exportReviewPdf({
+        review,
+        periodLabel: period.label,
+        userName: userProfile?.fullName || user?.email || "Your review",
+      });
+      toast.success("Your review PDF is ready");
     } catch (error) {
-      console.error("PDF Export error:", error);
-      toast.error("Failed to generate PDF. Make sure dependencies are installed.");
+      console.error("PDF export error:", error);
+      toast.error("Couldn't create the PDF. Please try again.");
     } finally {
       setIsGenerating(false);
     }
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <Card className="card-glass border-0 shadow-xl overflow-hidden">
-        <div className="bg-gradient-to-r from-primary to-accent p-6 text-white">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
-              <CardTitle className="text-2xl font-bold flex items-center gap-2">
-                <Sparkles className="h-6 w-6" />
-                Performance Review Report
-              </CardTitle>
-              <CardDescription className="text-white/80 mt-1">
-                Generate professional monthly impact reports from your tracked activities.
-              </CardDescription>
-            </div>
-            <div className="flex items-center gap-3 bg-white/10 p-2 rounded-xl backdrop-blur-md">
-              <Label htmlFor="month-select" className="text-sm font-medium whitespace-nowrap">Report Period:</Label>
-              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger id="month-select" className="w-[180px] bg-transparent border-white/20 text-white focus:ring-white/30">
-                  <SelectValue placeholder="Select month" />
+    <div className="space-y-6">
+      <Card className="border shadow-sm">
+        <CardHeader className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between space-y-0">
+          <div className="space-y-1">
+            <CardTitle className="text-2xl flex items-center gap-2">
+              <FileText className="h-6 w-6 text-primary" aria-hidden="true" />
+              Prepare my performance review
+            </CardTitle>
+            <CardDescription>
+              Bring together the wins and reflections you recorded for a review period. Nothing is added that you didn't write.
+            </CardDescription>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+            <div className="space-y-1.5">
+              <Label htmlFor="review-period">Review period</Label>
+              <Select value={periodId} onValueChange={setPeriodId}>
+                <SelectTrigger id="review-period" className="w-[220px]">
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {months.map(m => (
-                    <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                  {(Object.keys(GROUP_LABELS) as (keyof typeof GROUP_LABELS)[]).map((kind) => (
+                    <SelectGroup key={kind}>
+                      <SelectLabel>{GROUP_LABELS[kind]}</SelectLabel>
+                      {options[kind].map((p) => (
+                        <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>
+                      ))}
+                    </SelectGroup>
                   ))}
+                  <SelectGroup>
+                    <SelectLabel>Other</SelectLabel>
+                    <SelectItem value={CUSTOM}>Custom range…</SelectItem>
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </div>
+            {periodId === CUSTOM && (
+              <div className="flex gap-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="review-from">From</Label>
+                  <Input id="review-from" type="date" value={customFrom} max={customTo} onChange={(e) => setCustomFrom(e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="review-to">To</Label>
+                  <Input id="review-to" type="date" value={customTo} min={customFrom} onChange={(e) => setCustomTo(e.target.value)} />
+                </div>
+              </div>
+            )}
           </div>
-        </div>
+        </CardHeader>
 
-        <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <Card className="bg-muted/30 border-0 p-4 flex items-center gap-4">
-              <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
-                <FileText className="h-6 w-6" />
+        <CardContent className="space-y-6">
+          {!period || !review ? (
+            <p className="text-sm text-destructive">Choose a start date on or before the end date.</p>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="rounded-xl border bg-muted/30 p-4">
+                  <p className="text-sm text-muted-foreground">Wins recorded</p>
+                  <p className="text-2xl font-bold">{review.wins.length}</p>
+                </div>
+                <div className="rounded-xl border bg-muted/30 p-4">
+                  <p className="text-sm text-muted-foreground">With documented impact</p>
+                  <p className="text-2xl font-bold">
+                    {review.withImpact}
+                    {review.wins.length > 0 && <span className="text-base font-medium text-muted-foreground"> of {review.wins.length}</span>}
+                  </p>
+                </div>
+                <div className="rounded-xl border bg-muted/30 p-4">
+                  <p className="text-sm text-muted-foreground">Weekly reflections</p>
+                  <p className="text-2xl font-bold">{review.reflections.length}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground font-medium">Monthly Items</p>
-                <p className="text-2xl font-bold">{stats.total}</p>
-              </div>
-            </Card>
-            <Card className="bg-muted/30 border-0 p-4 flex items-center gap-4">
-              <div className="h-12 w-12 rounded-2xl bg-success/10 flex items-center justify-center text-success">
-                <CheckCircle2 className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground font-medium">Completion Rate</p>
-                <p className="text-2xl font-bold">{stats.total ? Math.round((stats.completed / stats.total) * 100) : 0}%</p>
-              </div>
-            </Card>
-            <Card className="bg-muted/30 border-0 p-4 flex items-center gap-4">
-              <div className="h-12 w-12 rounded-2xl bg-accent/10 flex items-center justify-center text-accent">
-                <TrendingUp className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground font-medium">Impactful Work</p>
-                <p className="text-2xl font-bold">{stats.impactful}</p>
-              </div>
-            </Card>
-          </div>
 
-          <div className="space-y-4">
-            <h4 className="font-bold flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-primary" />
-              Activities for {currentMonthLabel}
-            </h4>
-
-            <div className="border rounded-xl divide-y overflow-hidden bg-white/50">
-              {filteredActivities.length === 0 ? (
-                <div className="p-12 text-center text-muted-foreground italic">
-                  No activities recorded for this period. Try tracking some work in the Dashboard.
+              {review.wins.length === 0 ? (
+                <div className="flex flex-col items-center gap-2 rounded-xl border-2 border-dashed p-10 text-center">
+                  <NotebookPen className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
+                  <p className="font-semibold">No wins recorded for {period.label}</p>
+                  <p className="text-sm text-muted-foreground">Choose another period, or log a win to start building this one.</p>
                 </div>
               ) : (
-                filteredActivities.map((activity) => (
-                  <div key={activity.id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-lg">{categoryDisplay(activity.category, categories).emoji}</span>
-                        <h5 className="font-bold truncate">{activity.title}</h5>
-                      </div>
-                      <p className="text-sm text-muted-foreground line-clamp-1">{activity.description}</p>
-                    </div>
-                    <div className="flex flex-wrap gap-2 md:justify-end shrink-0">
-                      <Badge variant="secondary" className="capitalize text-[10px] font-bold">
-                        {activity.category}
-                      </Badge>
-                      <Badge variant="outline" className="text-[10px] font-bold">
-                        {format(parseISO(activity.date), "MMM dd")}
-                      </Badge>
-                      <Badge
-                        variant={activity.status === 'Done' ? 'default' : 'secondary'}
-                        className={`text-[10px] font-bold ${activity.status === 'Done' ? 'bg-success hover:bg-success/80' : ''}`}
-                      >
-                        {activity.status}
-                      </Badge>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div className="mt-8 flex flex-col md:flex-row justify-between items-center gap-6 p-6 rounded-2xl bg-secondary/20 border border-secondary/30">
-            <div className="flex items-start gap-4">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <AlertCircle className="h-5 w-5 text-primary" />
-              </div>
-              <div className="max-w-md">
-                <p className="font-bold text-sm">Ready for Review?</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  The PDF includes a summary of your month, a status breakdown, and a full activity ledger.
-                </p>
-              </div>
-            </div>
-            <Button
-              onClick={handleExport}
-              disabled={isGenerating || filteredActivities.length === 0}
-              className="gap-2 h-12 px-8 shadow-xl shadow-primary/20 transition-all hover:scale-105"
-            >
-              {isGenerating ? "Processing..." : (
                 <>
-                  <Download className="h-4 w-4" />
-                  Generate Performance PDF
+                  {review.withImpact < review.wins.length && (
+                    <p className="flex items-start gap-2 rounded-xl bg-primary/5 p-3 text-sm">
+                      <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                      {review.wins.length - review.withImpact} of your wins have no impact noted. Adding what changed as a result makes them much stronger evidence.
+                    </p>
+                  )}
+
+                  <section aria-labelledby="review-wins" className="space-y-4">
+                    <h3 id="review-wins" className="font-bold">Wins by category</h3>
+                    {review.byCategory.map((group) => {
+                      const display = categoryDisplay(group.category, categories);
+                      return (
+                        <div key={group.category} className="rounded-xl border">
+                          <div className="flex items-center gap-2 border-b px-4 py-3">
+                            <span aria-hidden="true">{display.emoji}</span>
+                            <span className="font-semibold">{group.category}</span>
+                            <Badge variant="secondary" className="ml-auto">{group.wins.length}</Badge>
+                          </div>
+                          <ul className="divide-y">
+                            {group.wins.map((w) => (
+                              <li key={w.id} className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:gap-4">
+                                <span className="w-16 shrink-0 text-sm text-muted-foreground">{format(parseISO(w.date), "MMM d")}</span>
+                                <div className="min-w-0 flex-1 space-y-1">
+                                  <p className="font-medium">{w.title}</p>
+                                  {hasImpact(w) ? (
+                                    <p className="text-sm text-muted-foreground"><span className="font-semibold text-foreground">Impact:</span> {w.impactNotes}</p>
+                                  ) : (
+                                    <p className="text-sm italic text-muted-foreground">No impact noted</p>
+                                  )}
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      );
+                    })}
+                  </section>
                 </>
               )}
-            </Button>
-          </div>
+
+              <section aria-labelledby="review-reflections" className="space-y-3">
+                <h3 id="review-reflections" className="font-bold flex items-center gap-2">
+                  <BookOpen className="h-4 w-4" aria-hidden="true" />
+                  Weekly reflections
+                </h3>
+                {review.reflections.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No reflections in this period. They're optional, but they add useful context to a review.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {review.reflections.map((r) => (
+                      <li key={r.id} className="rounded-xl border px-4 py-3 text-sm">
+                        <p className="font-semibold">Week of {format(parseISO(r.weekStart), "MMM d, yyyy")}</p>
+                        <p className="mt-1 text-muted-foreground line-clamp-2">{r.workSummary}</p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+
+              <div className="flex flex-col items-start justify-between gap-4 rounded-xl border bg-muted/20 p-5 md:flex-row md:items-center">
+                <p className="text-sm text-muted-foreground max-w-lg">
+                  The PDF includes every win above with its impact, grouped by category, followed by your weekly reflections for {period.label}.
+                </p>
+                <Button onClick={handleExport} disabled={isGenerating || review.wins.length === 0} className="gap-2">
+                  {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Download className="h-4 w-4" aria-hidden="true" />}
+                  Download review PDF
+                </Button>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
     </div>

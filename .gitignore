@@ -40,3 +40,4 @@ ui-debug.log*
 !.env.e2e
 test-results/
 playwright-report/
+!.env.e2e-v1

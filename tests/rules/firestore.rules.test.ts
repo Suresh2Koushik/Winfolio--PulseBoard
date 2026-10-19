@@ -266,7 +266,7 @@ describe("activities", () => {
     );
   });
 
-  it("peers and managers cannot read someone's activities; admins can", async () => {
+  it("peers, managers and admins cannot read someone's activities", async () => {
     let id = "";
     await env.withSecurityRulesDisabled(async (ctx) => {
       const r = await addDoc(collection(ctx.firestore(), "activities"), { ...validActivity(EMP), createdAt: Timestamp.now() });
@@ -274,7 +274,7 @@ describe("activities", () => {
     });
     await assertFails(getDoc(doc(asUser(OTHER), "activities", id)));
     await assertFails(getDoc(doc(asUser(MGR), "activities", id)));
-    await assertSucceeds(getDoc(doc(asUser(ADMIN), "activities", id)));
+    await assertFails(getDoc(doc(asUser(ADMIN), "activities", id)));
     await assertFails(getDocs(query(collection(asUser(OTHER), "activities"), where("userId", "==", EMP))));
   });
 
@@ -406,6 +406,35 @@ describe("feedback and action items", () => {
     await assertSucceeds(updateDoc(empRef, { status: "completed", completedAt: serverTimestamp() }));
     await assertFails(updateDoc(empRef, { title: "Nothing to do" }));
     await assertFails(getDoc(doc(asUser(OTHER), "actionItems", ref.id)));
+  });
+});
+
+describe("admin privacy: journal content is owner-only", () => {
+  it("admins cannot read or list anyone's wins, reflections, goals, feedback or action items", async () => {
+    const ids: Record<string, string> = {};
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      const now = Timestamp.now();
+      ids.checkIns = (await addDoc(collection(db, "checkIns"), { ...validCheckIn(EMP, MGR), createdAt: now })).id;
+      ids.goals = (await addDoc(collection(db, "goals"), { ...validGoal(EMP, MGR), createdAt: now })).id;
+      ids.feedback = (await addDoc(collection(db, "feedback"), {
+        managerId: MGR, managerName: MGR, employeeId: EMP, employeeName: EMP, content: "x", acknowledged: false, createdAt: now,
+      })).id;
+      ids.actionItems = (await addDoc(collection(db, "actionItems"), {
+        employeeId: EMP, assignedById: MGR, title: "x", status: "open", createdAt: now,
+      })).id;
+    });
+    const admin = asUser(ADMIN);
+    for (const [name, id] of Object.entries(ids)) {
+      await assertFails(getDoc(doc(admin, name, id)));
+    }
+    for (const name of ["activities", "checkIns", "goals", "feedback", "actionItems"]) {
+      await assertFails(getDocs(collection(admin, name)));
+    }
+  });
+
+  it("admins can still list profiles to manage accounts", async () => {
+    await assertSucceeds(getDocs(collection(asUser(ADMIN), "users")));
   });
 });
 

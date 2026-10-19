@@ -33,7 +33,7 @@ export default function CheckIns() {
     };
 
     const handleDelete = async (id: string) => {
-        if (confirm("Are you sure you want to delete this check-in?")) {
+        if (confirm("Are you sure you want to delete this reflection?")) {
             await deleteCheckIn(id);
         }
     };
@@ -69,10 +69,10 @@ export default function CheckIns() {
             <div className="p-4 md:p-6 max-w-5xl mx-auto">
                 <header className="mb-8">
                     <h1 className="text-2xl md:text-3xl font-bold mb-1 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                        Weekly Check-Ins
+                        Weekly Reflections
                     </h1>
                     <p className="text-muted-foreground text-sm">
-                        Track your weekly progress and share updates with your manager
+                        A few minutes each week on what went well, what was hard, and what's next
                     </p>
                 </header>
 
@@ -80,7 +80,7 @@ export default function CheckIns() {
                     <div className="relative flex-1">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                         <Input
-                            placeholder="Search check-ins..."
+                            placeholder="Search reflections..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="pl-10"
@@ -88,13 +88,13 @@ export default function CheckIns() {
                     </div>
                     <Button onClick={() => { setEditingCheckIn(null); setFormOpen(true); }} className="gap-2">
                         <Plus className="h-4 w-4" />
-                        New Check-In
+                        New Reflection
                     </Button>
                 </div>
 
                 <Tabs defaultValue="all" className="space-y-6">
                     <TabsList>
-                        <TabsTrigger value="all">All Check-Ins</TabsTrigger>
+                        <TabsTrigger value="all">All Reflections</TabsTrigger>
                         <TabsTrigger value="recent">This Month</TabsTrigger>
                         <TabsTrigger value="blockers">With Blockers</TabsTrigger>
                     </TabsList>
@@ -103,13 +103,13 @@ export default function CheckIns() {
                         {Object.keys(groupedByMonth).length === 0 ? (
                             <div className="text-center py-16 bg-card rounded-xl border-2 border-dashed">
                                 <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                                <h3 className="text-lg font-semibold mb-2">No check-ins yet</h3>
+                                <h3 className="text-lg font-semibold mb-2">No reflections yet</h3>
                                 <p className="text-muted-foreground mb-4">
-                                    Start tracking your weekly progress by creating your first check-in
+                                    Take a moment to reflect on your week. Your future self will thank you at review time.
                                 </p>
                                 <Button onClick={() => setFormOpen(true)}>
                                     <Plus className="h-4 w-4 mr-2" />
-                                    Create Check-In
+                                    Write your first reflection
                                 </Button>
                             </div>
                         ) : (

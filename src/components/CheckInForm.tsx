@@ -106,7 +106,7 @@ export function CheckInForm({ open, onOpenChange, onSave, editCheckIn }: CheckIn
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                        {editCheckIn ? 'Edit Check-In' : 'Weekly Check-In'}
+                        {editCheckIn ? 'Edit Reflection' : 'Weekly Reflection'}
                     </DialogTitle>
                 </DialogHeader>
 
@@ -134,32 +134,20 @@ export function CheckInForm({ open, onOpenChange, onSave, editCheckIn }: CheckIn
 
                     {/* Work Summary */}
                     <div className="space-y-2">
-                        <Label htmlFor="workSummary">Work Summary *</Label>
+                        <Label htmlFor="workSummary">What went well this week? *</Label>
                         <Textarea
                             id="workSummary"
                             value={workSummary}
                             onChange={(e) => setWorkSummary(e.target.value)}
-                            placeholder="Describe what you worked on this week..."
+                            placeholder="The work you're proud of, progress you made, problems you solved..."
                             className="min-h-[100px] resize-none"
                             required
                         />
                     </div>
 
-                    {/* Achievements */}
-                    <div className="space-y-2">
-                        <Label htmlFor="achievements">Key Achievements</Label>
-                        <Textarea
-                            id="achievements"
-                            value={achievements}
-                            onChange={(e) => setAchievements(e.target.value)}
-                            placeholder="What did you accomplish? Any wins to celebrate?"
-                            className="min-h-[80px] resize-none"
-                        />
-                    </div>
-
                     {/* Blockers */}
                     <div className="space-y-2">
-                        <Label htmlFor="blockers">Blockers / Challenges</Label>
+                        <Label htmlFor="blockers">What was challenging?</Label>
                         <Textarea
                             id="blockers"
                             value={blockers}
@@ -169,14 +157,26 @@ export function CheckInForm({ open, onOpenChange, onSave, editCheckIn }: CheckIn
                         />
                     </div>
 
+                    {/* Achievements */}
+                    <div className="space-y-2">
+                        <Label htmlFor="achievements">What did you learn?</Label>
+                        <Textarea
+                            id="achievements"
+                            value={achievements}
+                            onChange={(e) => setAchievements(e.target.value)}
+                            placeholder="A skill, a lesson, something you'd do differently..."
+                            className="min-h-[80px] resize-none"
+                        />
+                    </div>
+
                     {/* Support Needed */}
                     <div className="space-y-2">
-                        <Label htmlFor="supportNeeded">Support Needed</Label>
+                        <Label htmlFor="supportNeeded">What will you focus on next week?</Label>
                         <Textarea
                             id="supportNeeded"
                             value={supportNeeded}
                             onChange={(e) => setSupportNeeded(e.target.value)}
-                            placeholder="How can your manager or team help?"
+                            placeholder="One or two priorities for next week..."
                             className="min-h-[60px] resize-none"
                         />
                     </div>
@@ -242,7 +242,7 @@ export function CheckInForm({ open, onOpenChange, onSave, editCheckIn }: CheckIn
                                     Saving...
                                 </>
                             ) : (
-                                editCheckIn ? 'Update Check-In' : 'Submit Check-In'
+                                editCheckIn ? 'Update Reflection' : 'Save Reflection'
                             )}
                         </Button>
                     </div>

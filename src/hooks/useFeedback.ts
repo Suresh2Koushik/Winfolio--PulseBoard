@@ -15,6 +15,7 @@ import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Feedback, ActionItem, ActionItemStatus } from '@/types';
 import { toast } from 'sonner';
+import { TEAMS_ENABLED } from '@/lib/features';
 
 const toIso = (value: { toDate?: () => Date } | undefined) =>
     value?.toDate?.()?.toISOString();
@@ -82,7 +83,8 @@ export function useFeedback() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (!user) {
+        // Feedback and action items are team features; nothing to load in individual mode.
+        if (!user || !TEAMS_ENABLED) {
             setFeedback([]);
             setGivenFeedback([]);
             setActionItems([]);

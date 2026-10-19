@@ -55,7 +55,7 @@ export function useCheckIns() {
             setLoading(false);
         }, (error) => {
             console.error('Error fetching check-ins:', error);
-            toast.error('Failed to load check-ins');
+            toast.error('Failed to load reflections');
             setLoading(false);
         });
 
@@ -76,11 +76,11 @@ export function useCheckIns() {
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
             });
-            toast.success('Check-in submitted!');
+            toast.success('Reflection saved');
             return docRef.id;
         } catch (error) {
             console.error('Error adding check-in:', error);
-            toast.error('Failed to submit check-in');
+            toast.error('Failed to save reflection');
             return null;
         }
     }, [user, managerId]);
@@ -95,10 +95,10 @@ export function useCheckIns() {
                 managerId,
                 updatedAt: serverTimestamp(),
             });
-            toast.success('Check-in updated');
+            toast.success('Reflection updated');
         } catch (error) {
             console.error('Error updating check-in:', error);
-            toast.error('Failed to update check-in');
+            toast.error('Failed to update reflection');
         }
     }, [user, managerId]);
 
@@ -107,10 +107,10 @@ export function useCheckIns() {
 
         try {
             await deleteDoc(doc(db, 'checkIns', id));
-            toast.success('Check-in deleted');
+            toast.success('Reflection deleted');
         } catch (error) {
             console.error('Error deleting check-in:', error);
-            toast.error('Failed to delete check-in');
+            toast.error('Failed to delete reflection');
         }
     }, [user]);
 

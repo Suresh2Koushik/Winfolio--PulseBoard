@@ -2,16 +2,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   collection,
   doc,
-  getCountFromServer,
   getDocs,
-  query,
   serverTimestamp,
-  where,
   writeBatch,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuditLog } from "@/hooks/useAuditLog";
+import { TEAMS_ENABLED } from "@/lib/features";
 import { UserRole } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,9 +20,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Users,
-  Activity,
   TrendingUp,
-  BarChart3,
+  UserCheck,
+  Shield,
   Download,
   Search,
   Loader2,
@@ -47,14 +45,13 @@ interface UserData {
   team?: string;
   managerId?: string | null;
   createdAt: string;
-  activityCount?: number;
 }
 
 interface Analytics {
   totalUsers: number;
   newUsers30d: number;
-  totalActivities: number;
-  totalCheckIns: number;
+  onboarded: number;
+  admins: number;
   signupTimeline: Array<{ date: string; count: number }>;
 }
 
@@ -72,11 +69,9 @@ export default function Admin() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [usersSnapshot, activitiesCount, checkInsCount] = await Promise.all([
-        getDocs(collection(db, "users")),
-        getCountFromServer(collection(db, "activities")),
-        getCountFromServer(collection(db, "checkIns")),
-      ]);
+      // Profiles only. Journal content (wins, reflections, goals) is private to each
+      // user and not readable by admins (see firestore.rules).
+      const usersSnapshot = await getDocs(collection(db, "users"));
 
       const userData: UserData[] = usersSnapshot.docs
         .map((d) => {
@@ -94,16 +89,6 @@ export default function Admin() {
         })
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
-      // Per-user activity counts use server-side aggregation (no document downloads).
-      const counts = await Promise.all(
-        userData.map((u) =>
-          getCountFromServer(query(collection(db, "activities"), where("userId", "==", u.id)))
-            .then((r) => r.data().count)
-            .catch(() => undefined)
-        )
-      );
-      userData.forEach((u, i) => { u.activityCount = counts[i]; });
-
       // Daily signups for the last 30 days, oldest first.
       const since = startOfDay(subDays(new Date(), 29));
       const perDay = new Map<string, number>();
@@ -120,8 +105,8 @@ export default function Admin() {
       setAnalytics({
         totalUsers: userData.length,
         newUsers30d: userData.filter((u) => new Date(u.createdAt) >= since).length,
-        totalActivities: activitiesCount.data().count,
-        totalCheckIns: checkInsCount.data().count,
+        onboarded: userData.filter((u) => u.team).length,
+        admins: userData.filter((u) => u.role === "admin").length,
         signupTimeline: Array.from(perDay, ([date, count]) => ({ date, count })),
       });
     } catch (error) {
@@ -270,10 +255,12 @@ export default function Admin() {
             <p className="text-muted-foreground text-sm">Manage people, roles and reporting lines</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={syncDirectory} disabled={savingId !== null} className="gap-2">
-              <Users className="h-4 w-4" />
-              Sync manager directory
-            </Button>
+            {TEAMS_ENABLED && (
+              <Button variant="outline" onClick={syncDirectory} disabled={savingId !== null} className="gap-2">
+                <Users className="h-4 w-4" />
+                Sync manager directory
+              </Button>
+            )}
             <Button variant="outline" onClick={fetchData} disabled={loading} className="gap-2">
               <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
               Refresh
@@ -287,8 +274,8 @@ export default function Admin() {
               {[
                 { label: 'Total Users', value: analytics.totalUsers, icon: Users, color: 'text-primary', bg: 'bg-primary/10' },
                 { label: 'New (30 days)', value: analytics.newUsers30d, icon: TrendingUp, color: 'text-success', bg: 'bg-success/10' },
-                { label: 'Total Activities', value: analytics.totalActivities, icon: Activity, color: 'text-info', bg: 'bg-info/10' },
-                { label: 'Check-Ins', value: analytics.totalCheckIns, icon: BarChart3, color: 'text-accent', bg: 'bg-accent/10' },
+                { label: 'Finished onboarding', value: analytics.onboarded, icon: UserCheck, color: 'text-info', bg: 'bg-info/10' },
+                { label: 'Admins', value: analytics.admins, icon: Shield, color: 'text-accent', bg: 'bg-accent/10' },
               ].map((stat) => (
                 <Card key={stat.label} className="border-0 shadow-lg">
                   <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -333,7 +320,7 @@ export default function Admin() {
                 <div>
                   <CardTitle>People</CardTitle>
                   <CardDescription>
-                    Promote managers and set who reports to whom. Employees can only see managers listed here.
+                    {TEAMS_ENABLED ? "Promote managers and set who reports to whom. Employees can only see managers listed here." : "Account roles. Admins see profile details only; nobody can read another person's journal."}
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-3 w-full md:w-auto">
@@ -350,7 +337,7 @@ export default function Admin() {
                     variant="outline"
                     className="gap-2"
                     onClick={() => {
-                      exportUserListToCSV(filteredUsers.map((u) => ({ ...u, activityCount: u.activityCount ?? 0 })));
+                      exportUserListToCSV(filteredUsers);
                       toast.success("User list downloaded!");
                     }}
                   >
@@ -365,9 +352,8 @@ export default function Admin() {
                     <TableRow className="bg-muted/50 hover:bg-muted/50">
                       <TableHead className="min-w-[240px]">User</TableHead>
                       <TableHead>Role</TableHead>
-                      <TableHead>Reports to</TableHead>
+                      {TEAMS_ENABLED && <TableHead>Reports to</TableHead>}
                       <TableHead>Team</TableHead>
-                      <TableHead>Activities</TableHead>
                       <TableHead>Joined</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -402,11 +388,12 @@ export default function Admin() {
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="employee">Employee</SelectItem>
-                                <SelectItem value="manager">Manager</SelectItem>
+                                {(TEAMS_ENABLED || u.role === "manager") && <SelectItem value="manager">Manager</SelectItem>}
                                 <SelectItem value="admin">Admin</SelectItem>
                               </SelectContent>
                             </Select>
                           </TableCell>
+                          {TEAMS_ENABLED && (
                           <TableCell>
                             <Select
                               value={u.managerId ?? NO_MANAGER}
@@ -424,11 +411,9 @@ export default function Admin() {
                               </SelectContent>
                             </Select>
                           </TableCell>
+                          )}
                           <TableCell>
                             <span className="text-sm font-medium">{u.team || '—'}</span>
-                          </TableCell>
-                          <TableCell>
-                            <span className="text-sm font-bold">{u.activityCount ?? '—'}</span>
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2 text-muted-foreground">

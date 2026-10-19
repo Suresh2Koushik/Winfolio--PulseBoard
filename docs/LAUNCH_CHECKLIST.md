@@ -72,9 +72,11 @@ These points come from the old code's behaviour. I couldn't see the live databas
 
 | Area | Status |
 |---|---|
-| Reassigning someone to a new manager | The old manager keeps read access to that person's existing check-ins/goals until the person next signs in (re-tagging happens on the employee's client). Demotion revokes access immediately. |
-| Single workspace | All users share one workspace. There are no organisations, invitations or per-company isolation. |
-| AI review summaries | Not implemented. The Reviews tab produces a PDF from your data, without AI. |
+| v1 is individual-only | Team features are off (`VITE_FEATURE_TEAMS` unset). The code, rules and a full E2E suite stay in place for v2. |
+| Journal privacy | Wins, reflections, goals, feedback and action items are readable only by their owner, enforced by `firestore.rules` and tested; in-app admins see profiles (name, email, team, role) only. The Firebase project owner can still view raw data in the Firebase console, as with any Firebase app: state this in the privacy policy. |
+| Reassigning someone to a new manager (teams mode) | The old manager keeps read access to that person's existing check-ins/goals until the person next signs in (re-tagging happens on the employee's client). Demotion revokes access immediately. |
+| Single workspace | All users share one workspace. There are no organisations, invitations or per-company isolation. Matters only once team features return. |
+| AI review summaries | Not implemented. Reviews show and export (PDF) the user's own wins with impact, grouped by category, plus weekly reflections, for a month, quarter, half-year, year or custom range. |
 | Email verification | Sent at sign-up but not enforced. |
 | Password policy | Enforced in the sign-up form only. Configure a server-side policy in Authentication → Settings if needed. |
 | Account deletion / data export | Admin export of the user list only; no self-serve delete. |

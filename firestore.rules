@@ -8,7 +8,8 @@ rules_version = '2';
 //   - A manager can read a report's check-ins and goals. Those documents carry
 //     a denormalised `managerId`, which must equal the owner's current
 //     users/{uid}.managerId at write time, so it cannot be forged.
-//   - Admins can read everything (for platform analytics) and manage roles.
+//   - Admins manage profiles, roles and reporting lines. They cannot read anyone's
+//     journal content (wins, reflections, goals, feedback, action items).
 //
 // Tests: tests/rules/*.test.ts (npm run test:rules)
 
@@ -184,7 +185,8 @@ service cloud.firestore {
           && isOptString(data, 'praises', 2000);
       }
 
-      allow read: if signedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      // Journal content is private to its owner: not even admins can read it.
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
       allow create: if signedIn() && incoming().userId == uid()
         && validActivity(incoming()) && createdNow();
       allow update: if signedIn() && existing().userId == uid()
@@ -240,7 +242,6 @@ service cloud.firestore {
       allow read: if signedIn() && (
         resource.data.userId == request.auth.uid
         || (resource.data.managerId == request.auth.uid && isManagerOrAdmin())
-        || isAdmin()
       );
       allow create: if signedIn() && incoming().userId == uid()
         && validCheckIn(incoming()) && createdNow();
@@ -270,7 +271,6 @@ service cloud.firestore {
       allow read: if signedIn() && (
         resource.data.userId == request.auth.uid
         || (resource.data.managerId == request.auth.uid && isManagerOrAdmin())
-        || isAdmin()
       );
       allow create: if signedIn() && incoming().userId == uid()
         && validGoal(incoming()) && createdNow();
@@ -286,7 +286,6 @@ service cloud.firestore {
       allow read: if signedIn() && (
         resource.data.employeeId == request.auth.uid
         || resource.data.managerId == request.auth.uid
-        || isAdmin()
       );
 
       // Only the employee's own manager (or an admin) may send feedback.
@@ -322,7 +321,6 @@ service cloud.firestore {
       allow read: if signedIn() && (
         resource.data.employeeId == request.auth.uid
         || resource.data.assignedById == request.auth.uid
-        || isAdmin()
       );
 
       allow create: if isManagerOrAdmin()

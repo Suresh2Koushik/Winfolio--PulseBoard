@@ -10,6 +10,7 @@ import AppLayout from "@/components/AppLayout";
 import Landing from "./pages/Landing";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
+import { TEAMS_ENABLED } from "@/lib/features";
 import { Loader2 } from "lucide-react";
 
 // Signed-in pages load on demand so the landing page stays small.
@@ -55,7 +56,9 @@ const App = () => (
               <Route path="/dashboard" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
               <Route path="/check-ins" element={<ProtectedRoute><AppLayout><CheckIns /></AppLayout></ProtectedRoute>} />
               <Route path="/goals" element={<ProtectedRoute><AppLayout><Goals /></AppLayout></ProtectedRoute>} />
-              <Route path="/manager" element={<ProtectedRoute requiredRole="manager"><AppLayout><ManagerDashboard /></AppLayout></ProtectedRoute>} />
+              {TEAMS_ENABLED && (
+                <Route path="/manager" element={<ProtectedRoute requiredRole="manager"><AppLayout><ManagerDashboard /></AppLayout></ProtectedRoute>} />
+              )}
               <Route path="/admin" element={<ProtectedRoute requiredRole="admin"><AppLayout><Admin /></AppLayout></ProtectedRoute>} />
 
               <Route path="*" element={<NotFound />} />

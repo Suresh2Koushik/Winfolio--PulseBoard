@@ -49,7 +49,7 @@ export function ActivityForm({ open, onOpenChange, onSave, editActivity }: Activ
     category: "Other" as ActivityCategory,
     teams: [] as string[],
     impactNotes: "",
-    status: "Not Started" as Activity["status"],
+    status: "Done" as Activity["status"], // a logged win is usually finished work
     attachmentUrl: "",
     praises: "",
   });
@@ -88,7 +88,7 @@ export function ActivityForm({ open, onOpenChange, onSave, editActivity }: Activ
         category: "Other",
         teams: [],
         impactNotes: "",
-        status: "Not Started",
+        status: "Done",
         attachmentUrl: "",
         praises: "",
       });

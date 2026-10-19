@@ -34,7 +34,7 @@ const Landing = () => {
           </h1>
           
           <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-            Capture your wins as they happen, keep your manager in the loop,
+            Capture your wins as they happen, reflect on your week,
             and turn a year of work into a review-ready story — in minutes.
           </p>
 

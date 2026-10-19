@@ -13,6 +13,7 @@ import { FirebaseError } from "firebase/app";
 import { auth } from "@/lib/firebase";
 import { ensureUserProfile } from "@/lib/userProfile";
 import { useAuth } from "@/contexts/AuthContext";
+import { TEAMS_ENABLED } from "@/lib/features";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -306,7 +307,9 @@ const Auth = () => {
                 </div>
 
                 <p className="text-xs text-muted-foreground">
-                  You'll set your team and manager in the next step. Manager and admin access is granted by your workspace admin.
+                  {TEAMS_ENABLED
+                    ? "You'll set your team and manager in the next step. Manager and admin access is granted by your workspace admin."
+                    : "Next, you'll tell us your role so we can suggest the right categories as you log work."}
                 </p>
 
                 <Button type="submit" className="w-full h-11 text-base font-medium" disabled={loading}>

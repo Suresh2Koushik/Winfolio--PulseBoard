@@ -66,18 +66,18 @@ const PROBLEMS = [
 const HABITS = [
   { icon: PenLine, title: "Capture", benefit: "Nothing worth mentioning gets lost.", body: "Log a win in under a minute. Add the outcome in your own words; no forced metrics." },
   { icon: BookOpen, title: "Reflect", benefit: "You see how you're growing.", body: "Once a week, note what went well, what was hard and what's next." },
-  { icon: FileText, title: "Showcase", benefit: "You walk in prepared.", body: "Pick a month and download a review-ready summary of what you recorded." },
+  { icon: FileText, title: "Showcase", benefit: "You walk in prepared.", body: "Pick a month, a quarter or any date range, and download your wins with their impact, plus your weekly reflections." },
 ];
 
 const MOMENTS = [
-  { icon: Briefcase, title: "When appraisal season arrives", body: "Your wins are already there, organised by month and by category, so you spend your time on the conversation instead of reconstructing the year." },
+  { icon: Briefcase, title: "When appraisal season arrives", body: "Your wins and reflections are already there for whatever period your review covers, so you spend your time on the conversation instead of reconstructing the year." },
   { icon: Sprout, title: "When you want to see your growth", body: "Look back across weeks and quarters at the projects, problems and lessons that show how your work has grown." },
   { icon: TrendingUp, title: "When a new opportunity comes along", body: "Pull concrete examples for promotion discussions, career conversations and interviews from a record you already have." },
 ];
 
 const TRUST = [
-  { icon: LockKeyhole, title: "Private to your account", body: "Access is enforced on our servers, not just hidden in the app. No other member can see your journal." },
-  { icon: Download, title: "Yours to take with you", body: "Export your wins to Excel, or download them as a PDF, whenever you want." },
+  { icon: LockKeyhole, title: "Private to your account", body: "Only you can read your journal. Not other members, and not Winfolio's in-app admins: it's enforced on our servers, not just hidden in the app." },
+  { icon: Download, title: "Yours to take with you", body: "Export your wins to Excel, or download a review PDF with your wins, their impact and your reflections, whenever you want." },
   { icon: FileSpreadsheet, title: "Bring your history", body: "Already keep a spreadsheet? Import it with our template; rows are checked before they're saved." },
 ];
 
@@ -168,7 +168,7 @@ export default function WinfolioLanding({ variant, showPreviewSwitch = false }: 
               </span>
               <div className="min-w-0">
                 <p className="font-bold">Ready for your review</p>
-                <p className={cn("text-sm", t.bandMuted)}>Pick a month and download your recorded wins as a PDF.</p>
+                <p className={cn("text-sm", t.bandMuted)}>Your wins, their impact and your reflections for any period, as a PDF.</p>
               </div>
             </div>
           </div>
@@ -235,12 +235,12 @@ export default function WinfolioLanding({ variant, showPreviewSwitch = false }: 
                   )}
                   {i === 2 && (
                     <div className="mt-3 flex flex-col gap-1.5">
-                      <p className="font-bold">October · 9 wins</p>
-                      <ul className="flex flex-col gap-1">
-                        <li className="flex justify-between gap-3"><span>Fixed the checkout timeout</span><span className="shrink-0 font-bold">Oct 8</span></li>
-                        <li className="flex justify-between gap-3"><span>Launched partner onboarding</span><span className="shrink-0 font-bold">Oct 15</span></li>
-                        <li className="flex justify-between gap-3"><span>Mentored a new teammate</span><span className="shrink-0 font-bold">Oct 22</span></li>
-                      </ul>
+                      <p className="font-bold">Q4 review · 9 wins · 6 reflections</p>
+                      <div className="flex flex-col gap-1">
+                        <p className="text-xs font-bold uppercase tracking-wider opacity-80">Problem Solving (4)</p>
+                        <p className="font-semibold">Fixed the checkout timeout</p>
+                        <p className="text-[13px]">Impact: no failed checkouts during the sale</p>
+                      </div>
                     </div>
                   )}
                 </div>

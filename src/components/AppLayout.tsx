@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { UserMenu } from "@/components/UserMenu";
+import { TEAMS_ENABLED } from "@/lib/features";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -30,10 +31,10 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
+  ...(TEAMS_ENABLED ? [{ label: "Manager", icon: Users, path: "/manager", roles: ["manager", "admin"] }] : []),
   { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
-  { label: "Check-Ins", icon: CheckCircle2, path: "/check-ins" },
+  { label: "Reflections", icon: CheckCircle2, path: "/check-ins" },
   { label: "Goals", icon: Target, path: "/goals" },
-  { label: "Manager", icon: Users, path: "/manager", roles: ["manager", "admin"] },
   { label: "Reviews", icon: Sparkles, path: "/dashboard?tab=review" },
   { label: "Admin", icon: Shield, path: "/admin", roles: ["admin"] },
 ];

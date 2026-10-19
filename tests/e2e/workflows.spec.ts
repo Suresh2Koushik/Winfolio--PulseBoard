@@ -120,11 +120,11 @@ test.describe.serial("PulseBoard core workflows", () => {
 
   test("employee submits a check-in with optional fields left blank", async () => {
     await alice.goto("/check-ins");
-    await alice.getByRole("button", { name: "New Check-In" }).click();
+    await alice.getByRole("button", { name: "New Reflection" }).click();
     await alice.locator("#workSummary").fill("Finished the onboarding revamp and started partner work.");
     await alice.locator("#blockers").fill("Waiting on API keys from partner");
-    await alice.getByRole("button", { name: "Submit Check-In" }).click();
-    await expect(alice.getByText("Check-in submitted!")).toBeVisible();
+    await alice.getByRole("button", { name: "Save Reflection" }).click();
+    await expect(alice.getByText("Reflection saved")).toBeVisible();
     await expect(alice.getByText("Finished the onboarding revamp").first()).toBeVisible();
   });
 
@@ -184,7 +184,7 @@ test.describe.serial("PulseBoard core workflows", () => {
 
     await alice.goto("/dashboard?tab=review");
     const pdf = alice.waitForEvent("download");
-    await alice.getByRole("button", { name: /Generate Performance PDF/ }).click();
+    await alice.getByRole("button", { name: /Download review PDF/ }).click();
     expect((await pdf).suggestedFilename()).toMatch(/\.pdf$/);
   });
 
@@ -248,6 +248,6 @@ test.describe.serial("PulseBoard core workflows", () => {
     await alice.goto("/dashboard");
     await alice.getByRole("button", { name: "Reviews" }).first().click();
     await expect(alice).toHaveURL(/tab=review/);
-    await expect(alice.getByText("Performance Review Report")).toBeVisible();
+    await expect(alice.getByText("Prepare my performance review")).toBeVisible();
   });
 });

@@ -50,7 +50,7 @@ export function CheckInCard({
                             </span>
                         </div>
                         <CardTitle className="text-lg font-semibold">
-                            Weekly Check-In
+                            Weekly Reflection
                         </CardTitle>
                     </div>
 
@@ -92,7 +92,7 @@ export function CheckInCard({
                     <div className="flex items-start gap-2 p-3 rounded-lg bg-success/10 border border-success/20">
                         <Trophy className="h-4 w-4 text-success mt-0.5" />
                         <div>
-                            <p className="text-xs font-medium text-success mb-1">Achievements</p>
+                            <p className="text-xs font-medium text-success mb-1">What I learned</p>
                             <p className={cn(
                                 "text-sm",
                                 !expanded && "line-clamp-2"
@@ -108,7 +108,7 @@ export function CheckInCard({
                     <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
                         <AlertTriangle className="h-4 w-4 text-destructive mt-0.5" />
                         <div>
-                            <p className="text-xs font-medium text-destructive mb-1">Blockers</p>
+                            <p className="text-xs font-medium text-destructive mb-1">What was challenging</p>
                             <p className={cn(
                                 "text-sm",
                                 !expanded && "line-clamp-2"
@@ -124,7 +124,7 @@ export function CheckInCard({
                     <div className="flex items-start gap-2 p-3 rounded-lg bg-info/10 border border-info/20">
                         <HelpCircle className="h-4 w-4 text-info mt-0.5" />
                         <div>
-                            <p className="text-xs font-medium text-info mb-1">Support Needed</p>
+                            <p className="text-xs font-medium text-info mb-1">Focus next week</p>
                             <p className={cn(
                                 "text-sm",
                                 !expanded && "line-clamp-2"

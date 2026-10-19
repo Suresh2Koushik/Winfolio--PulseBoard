@@ -38,23 +38,17 @@ export function ChangeLogDisplay() {
             }));
             setChangeLogs(logs);
             setLoading(false);
+        }, (error) => {
+            console.error('Error loading release notes:', error);
+            setLoading(false);
         });
 
         return () => unsubscribe();
     }, []);
 
-    // Show hardcoded initial release if no logs exist
-    const displayLogs = changeLogs.length > 0 ? changeLogs : [
-        {
-            id: '1',
-            version: '2.0.0',
-            releaseDate: new Date().toISOString(),
-            changeType: 'feature' as ChangeType,
-            title: 'PulseBoard 2.0 - Complete Platform Upgrade',
-            description: 'Introducing weekly check-ins, goal tracking, manager dashboards, AI insights, and premium UI.',
-            createdAt: new Date().toISOString(),
-        },
-    ];
+    // Only real release notes (written by an admin to `changeLogs`); nothing to show otherwise.
+    const displayLogs = changeLogs;
+    if (loading || displayLogs.length === 0) return null;
 
     return (
         <Card className="h-full">
@@ -131,7 +125,7 @@ export function WhatsNewBanner() {
                     createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
                 });
             }
-        });
+        }, (error) => console.error('Error loading latest release note:', error));
 
         return () => unsubscribe();
     }, []);

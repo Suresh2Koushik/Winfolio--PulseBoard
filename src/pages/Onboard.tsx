@@ -14,6 +14,7 @@ import { JobFunction } from "@/types";
 import { categoriesForRole, JOB_FUNCTIONS, TEAM_OPTIONS } from "@/lib/categories";
 import { Plus, Trash2, Sparkles, Target, Users, CheckCircle2, ChevronRight, Loader2, Rocket } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { TEAMS_ENABLED } from "@/lib/features";
 
 export default function Onboard() {
   const navigate = useNavigate();
@@ -34,6 +35,7 @@ export default function Onboard() {
   const [newTeam, setNewTeam] = useState("");
 
   useEffect(() => {
+    if (!TEAMS_ENABLED) return;
     const fetchManagers = async () => {
       try {
         // Names only; the directory is maintained by admins when they grant manager access.
@@ -66,8 +68,11 @@ export default function Onboard() {
       await updateDoc(doc(db, "users", user.uid), {
         team: teamName.slice(0, 100),
         jobFunction,
-        managerId: selectedManager ? selectedManager.id : null,
-        managerName: selectedManager ? selectedManager.name : null,
+        // Individual mode never assigns a manager.
+        ...(TEAMS_ENABLED ? {
+          managerId: selectedManager ? selectedManager.id : null,
+          managerName: selectedManager ? selectedManager.name : null,
+        } : {}),
         updatedAt: serverTimestamp(),
       });
 
@@ -173,7 +178,7 @@ export default function Onboard() {
           <Card className="border-0 shadow-2xl glass-dark">
             <CardHeader>
               <CardTitle>Profile Setup</CardTitle>
-              <CardDescription>Tell us where you work and who you report to.</CardDescription>
+              <CardDescription>{TEAMS_ENABLED ? "Tell us where you work and who you report to." : "Tell us a little about your work."}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-2">
@@ -202,6 +207,7 @@ export default function Onboard() {
                 <p className="text-xs text-muted-foreground">We use this to suggest the right category as you log work.</p>
               </div>
 
+              {TEAMS_ENABLED && (
               <div className="space-y-2">
                 <Label>Your Manager (Optional)</Label>
                 <Select value={managerId} onValueChange={setManagerId}>
@@ -220,6 +226,7 @@ export default function Onboard() {
                 </Select>
                 <p className="text-xs text-muted-foreground">Managers can see your check-ins and provide feedback.</p>
               </div>
+              )}
 
               <Button onClick={handleCompleteProfile} className="w-full h-12 gap-2" disabled={loading}>
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Next Step <ChevronRight className="h-4 w-4" /></>}

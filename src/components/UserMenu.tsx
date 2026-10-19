@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { TEAMS_ENABLED } from "@/lib/features";
 import { UserCog, Shield, LogOut, CheckSquare, Target, LayoutDashboard, Settings } from "lucide-react";
 
 export function UserMenu() {
@@ -62,7 +63,7 @@ export function UserMenu() {
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => navigate("/check-ins")} className="cursor-pointer gap-2 py-2">
             <CheckSquare className="h-4 w-4 text-muted-foreground" />
-            My Check-Ins
+            My Reflections
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => navigate("/goals")} className="cursor-pointer gap-2 py-2">
             <Target className="h-4 w-4 text-muted-foreground" />
@@ -77,7 +78,7 @@ export function UserMenu() {
         <DropdownMenuSeparator />
 
         <div className="space-y-1">
-          {(userRole === 'admin' || userRole === 'manager') && (
+          {TEAMS_ENABLED && (userRole === 'admin' || userRole === 'manager') && (
             <DropdownMenuItem onClick={() => navigate("/manager")} className="cursor-pointer gap-2 py-2">
               <Shield className="h-4 w-4 text-primary" />
               Manager Dashboard

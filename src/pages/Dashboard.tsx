@@ -49,6 +49,7 @@ import { AlertsPanel } from "@/components/AlertsPanel";
 import { DashboardCharts } from "@/components/DashboardCharts";
 import { ChangeLogDisplay, WhatsNewBanner } from "@/components/ChangeLogDisplay";
 import { useAuth } from "@/contexts/AuthContext";
+import { TEAMS_ENABLED } from "@/lib/features";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 
@@ -245,7 +246,7 @@ export default function Dashboard() {
                   actionItems={actionItems}
                 />
 
-                {(feedback.length > 0 || actionItems.length > 0) && (
+                {TEAMS_ENABLED && (feedback.length > 0 || actionItems.length > 0) && (
                   <Card className="card-glass border-0 shadow-xl overflow-hidden">
                     <CardHeader className="pb-2">
                       <CardTitle className="flex items-center gap-2">
@@ -312,7 +313,7 @@ export default function Dashboard() {
                     </Button>
                     <Button variant="outline" onClick={() => navigate('/check-ins')} className="w-full justify-start gap-2 h-11">
                       <CheckCircle2 className="h-4 w-4" />
-                      Submit Weekly Check-In
+                      Write weekly reflection
                     </Button>
                     <Button variant="outline" onClick={() => navigate('/goals')} className="w-full justify-start gap-2 h-11">
                       <Target className="h-4 w-4" />
@@ -404,7 +405,7 @@ export default function Dashboard() {
           </TabsContent>
 
           <TabsContent value="review">
-            <ReviewGenerator activities={activities} />
+            <ReviewGenerator activities={activities} checkIns={checkIns} />
           </TabsContent>
 
           <TabsContent value="settings">
