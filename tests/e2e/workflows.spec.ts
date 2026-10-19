@@ -99,7 +99,9 @@ test.describe.serial("Winfolio team workflows (v2 features)", () => {
     const dialog = alice.getByRole("dialog", { name: "Log a win" });
     // Role-tuned keyword suggestion ("hotfix" is an engineering keyword).
     await dialog.locator("#title").fill("Hotfix for login outage");
-    await expect(dialog.getByRole("button", { name: /Suggested: Problem Solving/ })).toBeVisible();
+    // New wins take the suggested category automatically.
+    await expect(dialog.locator("#category")).toContainText("Problem Solving");
+    await expect(dialog.getByText("Picked from what you wrote")).toBeVisible();
     await dialog.locator("#title").fill("Shipped onboarding revamp");
     await dialog.getByRole("button", { name: "Save win" }).click();
     await expect(alice.getByText("Win saved! Look at you go.").first()).toBeVisible();

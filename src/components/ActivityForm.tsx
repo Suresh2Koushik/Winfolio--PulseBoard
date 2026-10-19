@@ -21,6 +21,8 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 const QUARTERS = ["Q1", "Q2", "Q3", "Q4"];
+// Everyday work counts too; these show the range and fill in the title in one tap.
+const EXAMPLES = ["Fixed a bug", "Helped a teammate", "Finished a report", "Ran a meeting", "Answered customer questions"];
 const CURRENT_YEAR = new Date().getFullYear();
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 // Must stay in sync with storage.rules.
@@ -63,6 +65,9 @@ export function ActivityForm({ open, onOpenChange, onSave, editActivity }: Activ
   const [dateType, setDateType] = useState<"date" | "quarter">("date");
   const [moreOpen, setMoreOpen] = useState(false);
   const [suggestedCategory, setSuggestedCategory] = useState<ActivityCategory | null>(null);
+  // New wins follow the suggestion until the person picks a category; edits keep theirs.
+  const [categoryChosen, setCategoryChosen] = useState(false);
+  const [autoPicked, setAutoPicked] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [removeAttachment, setRemoveAttachment] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -94,6 +99,8 @@ export function ActivityForm({ open, onOpenChange, onSave, editActivity }: Activ
       setMoreOpen(false);
     }
     setSuggestedCategory(null);
+    setCategoryChosen(Boolean(editActivity));
+    setAutoPicked(false);
     setSelectedFile(null);
     setRemoveAttachment(false);
   }, [editActivity, open]);
@@ -103,8 +110,16 @@ export function ActivityForm({ open, onOpenChange, onSave, editActivity }: Activ
     const suggested = formData.title || formData.description
       ? suggestCategory(formData.title, formData.description, pool)
       : null;
+    if (!categoryChosen) {
+      // Follow the words as they're typed; fall back to "Other" when nothing matches.
+      const next = suggested ?? "Other";
+      setAutoPicked(Boolean(suggested));
+      setSuggestedCategory(null);
+      if (next !== formData.category) setFormData((f) => ({ ...f, category: next }));
+      return;
+    }
     setSuggestedCategory(suggested && suggested !== formData.category ? suggested : null);
-  }, [formData.title, formData.description, formData.category, categories]);
+  }, [formData.title, formData.description, formData.category, categories, categoryChosen]);
 
   // Keep the win's current category selectable even if it was renamed or deleted.
   const categoryOptions = (() => {
@@ -205,7 +220,7 @@ export function ActivityForm({ open, onOpenChange, onSave, editActivity }: Activ
             {editActivity ? "Edit win" : "Log a win"}
           </DialogTitle>
           <DialogDescription>
-            {editActivity ? "Update the details of this win." : "A couple of sentences will do. Future you says thanks."}
+            {editActivity ? "Update the details of this win." : "Big or small, everyday work counts. A sentence or two is plenty."}
           </DialogDescription>
         </DialogHeader>
 
@@ -222,16 +237,36 @@ export function ActivityForm({ open, onOpenChange, onSave, editActivity }: Activ
               required
               className="h-12 text-base"
             />
+            {!editActivity && !formData.title && (
+              <div className="flex flex-wrap items-center gap-1.5" aria-label="Examples">
+                <span className="text-xs text-muted-foreground">Try:</span>
+                {EXAMPLES.map((example) => (
+                  <button
+                    key={example}
+                    type="button"
+                    onClick={() => {
+                      setFormData((f) => ({ ...f, title: example }));
+                      document.getElementById("title")?.focus();
+                    }}
+                    className="rounded-full border bg-card px-2.5 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:border-foreground hover:text-foreground"
+                  >
+                    {example}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="impact" className="text-base font-bold">What got better because of it?</Label>
+            <Label htmlFor="impact" className="text-base font-bold">
+              What got better because of it? <span className="text-sm font-medium text-muted-foreground">(optional)</span>
+            </Label>
             <Textarea
               id="impact"
               maxLength={5000}
               value={formData.impactNotes}
               onChange={(e) => setFormData({ ...formData, impactNotes: e.target.value })}
-              placeholder="Faster, fewer errors, happier customers... in your own words. Numbers help, but they're optional."
+              placeholder="Faster, fewer errors, a happier customer, a teammate unblocked... Skip it for routine work; add it when something improved."
               className="min-h-[84px] resize-none"
             />
           </div>
@@ -284,7 +319,14 @@ export function ActivityForm({ open, onOpenChange, onSave, editActivity }: Activ
 
             <div className="space-y-2">
               <Label htmlFor="category" className="font-bold">Category</Label>
-              <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value as ActivityCategory })}>
+              <Select
+                value={formData.category}
+                onValueChange={(value) => {
+                  setCategoryChosen(true);
+                  setAutoPicked(false);
+                  setFormData({ ...formData, category: value as ActivityCategory });
+                }}
+              >
                 <SelectTrigger id="category" className="h-11"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {categoryOptions.map((cat) => (
@@ -292,13 +334,21 @@ export function ActivityForm({ open, onOpenChange, onSave, editActivity }: Activ
                   ))}
                 </SelectContent>
               </Select>
+              {autoPicked && (
+                <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Sparkles className="h-3 w-3 shrink-0" aria-hidden="true" /> Picked from what you wrote
+                </p>
+              )}
             </div>
           </div>
 
           {suggestedCategory && (
             <button
               type="button"
-              onClick={() => setFormData({ ...formData, category: suggestedCategory })}
+              onClick={() => {
+                setCategoryChosen(true);
+                setFormData({ ...formData, category: suggestedCategory });
+              }}
               className="flex w-full items-center gap-2 rounded-xl bg-pastel-violet px-3 py-2 text-left text-sm font-semibold text-pastel-violet-ink transition-colors hover:bg-pastel-violet/70"
             >
               <Sparkles className="h-4 w-4 shrink-0" aria-hidden="true" />

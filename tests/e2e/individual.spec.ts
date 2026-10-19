@@ -116,8 +116,20 @@ test.describe.serial("Individual mode (v1)", () => {
     // First in page order: the sidebar on desktop, the top-bar button on phones.
     await page.getByRole("button", { name: "Log a win" }).first().click();
     const dialog = page.getByRole("dialog", { name: "Log a win" });
+    const category = dialog.locator("#category");
+
+    // Example chips fill the title; the category follows the words automatically.
+    await dialog.getByRole("button", { name: "Fixed a bug" }).click();
+    await expect(dialog.locator("#title")).toHaveValue("Fixed a bug");
+    await expect(category).toContainText("Problem Solving");
+    await expect(dialog.getByText("Picked from what you wrote")).toBeVisible();
+
+    // A category the person chooses is never overridden by later typing.
+    await chooseOption(page, category, /Delivery & Execution/);
     await dialog.locator("#title").fill(WIN_TITLE);
     await dialog.locator("#impact").fill(WIN_IMPACT);
+    await expect(category).toContainText("Delivery & Execution");
+    await expect(dialog.getByText("Picked from what you wrote")).toHaveCount(0);
     await dialog.getByRole("button", { name: "Save win" }).click();
     await expect(page.getByText("Win saved! Look at you go.").first()).toBeVisible();
     await expect(dialog).toHaveCount(0);
