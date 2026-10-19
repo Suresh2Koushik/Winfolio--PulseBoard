@@ -5,8 +5,8 @@ export type ThemePreference = "light" | "dark" | "system";
 const STORAGE_KEY = "winfolio-theme";
 const CHANGE_EVENT = "winfolio-theme-change";
 
-// The landing page and sign-in are designed around the light pastel brand; they stay light.
-const LIGHT_ONLY_PATHS = ["/", "/auth"];
+// The public pages (landing, sign-in, legal) are designed around the light pastel brand; they stay light.
+const LIGHT_ONLY_PATHS = ["/", "/auth", "/privacy", "/terms"];
 
 export function getThemePreference(): ThemePreference {
   try {

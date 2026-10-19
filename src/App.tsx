@@ -27,6 +27,8 @@ const Admin = lazy(() => import("./pages/Admin"));
 const Reflections = lazy(() => import("./pages/CheckIns"));
 const Goals = lazy(() => import("./pages/Goals"));
 const ManagerDashboard = lazy(() => import("./pages/ManagerDashboard"));
+const Privacy = lazy(() => import("./pages/Legal").then((m) => ({ default: m.Privacy })));
+const Terms = lazy(() => import("./pages/Legal").then((m) => ({ default: m.Terms })));
 
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -59,6 +61,8 @@ const App = () => (
                       {/* Public */}
                       <Route path="/" element={<WinfolioPlayful />} />
                       <Route path="/auth" element={<Auth />} />
+                      <Route path="/privacy" element={<Privacy />} />
+                      <Route path="/terms" element={<Terms />} />
 
                       {/* First-time setup and profile editing, without the sidebar */}
                       <Route path="/onboard" element={<ProtectedRoute allowIncompleteProfile><Onboard /></ProtectedRoute>} />

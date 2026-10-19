@@ -476,6 +476,10 @@ export default function WinfolioPlayful() {
       <footer className="border-t-2 border-[#0B0B12] bg-white">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-8 text-sm text-[#5A5A66] sm:px-6">
           <WinfolioLogo variant="pastel" className="text-[#0B0B12]" />
+          <nav aria-label="Legal" className="flex gap-4 font-semibold text-[#0B0B12]">
+            <Link to="/privacy" className="hover:underline">Privacy</Link>
+            <Link to="/terms" className="hover:underline">Terms</Link>
+          </nav>
           <span>© {new Date().getFullYear()} Winfolio · Every win deserves a place.</span>
         </div>
       </footer>

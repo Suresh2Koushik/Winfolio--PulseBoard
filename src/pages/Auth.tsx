@@ -314,6 +314,11 @@ const Auth = () => {
                 <Button type="submit" className="w-full h-11 text-base font-medium" disabled={loading}>
                   {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creating...</> : "Create Account"}
                 </Button>
+                <p className="text-center text-xs text-muted-foreground">
+                  By creating an account you agree to our{" "}
+                  <Link to="/terms" className="font-semibold text-foreground underline">Terms</Link> and{" "}
+                  <Link to="/privacy" className="font-semibold text-foreground underline">Privacy policy</Link>.
+                </p>
               </form>
             </TabsContent>
           </Tabs>

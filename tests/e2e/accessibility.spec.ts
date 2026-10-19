@@ -22,6 +22,8 @@ async function scan(page: Page, name: string) {
 
 test.describe.serial("Accessibility (WCAG 2.1 AA, automated)", () => {
   let page: Page;
+  // Each scan takes a few seconds and every screen is scanned, so allow more than the default.
+  test.describe.configure({ timeout: 300_000 });
 
   test.beforeAll(async ({ browser }) => {
     await resetEmulators();
@@ -33,6 +35,12 @@ test.describe.serial("Accessibility (WCAG 2.1 AA, automated)", () => {
     await scan(page, "home page");
     await page.goto("/auth");
     await scan(page, "sign-in");
+    await page.goto("/privacy");
+    await expect(page.getByRole("heading", { name: "Privacy policy" })).toBeVisible();
+    await scan(page, "privacy policy");
+    await page.goto("/terms");
+    await expect(page.getByRole("heading", { name: "Terms of use" })).toBeVisible();
+    await scan(page, "terms");
   });
 
   test("app screens", async () => {
