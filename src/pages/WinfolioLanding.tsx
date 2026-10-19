@@ -1,13 +1,13 @@
 import { Link } from "react-router-dom";
 import {
-  ArrowRight, BookOpen, Briefcase, Download, FileSpreadsheet, FileText, LockKeyhole, PenLine, Sparkles, Sprout, TrendingUp,
+  ArrowRight, BookOpen, Briefcase, Download, LockKeyhole, MessageCircle, PartyPopper, PenLine, Sprout,
 } from "lucide-react";
-import { BrandVariant, WinfolioLogo } from "@/components/brand/Brand";
+import { BrandVariant, HeroIllustration, WinfolioLogo } from "@/components/brand/Brand";
 import { cn } from "@/lib/utils";
 
 /**
- * Winfolio marketing page. Copy is limited to what the product does today:
- * every claim here is covered by the app's tests (see docs/LAUNCH_CHECKLIST.md).
+ * Winfolio marketing page. Product claims are limited to what the app does today
+ * and are covered by its tests (see docs/LAUNCH_CHECKLIST.md).
  *
  * Class sets per visual direction are written out in full so Tailwind sees them.
  */
@@ -56,22 +56,34 @@ const THEMES = {
   },
 } as const;
 
+// Emoji are part of the voice but decorative: hidden from screen readers.
+const Emoji = ({ children }: { children: string }) => <span aria-hidden="true">{children}</span>;
+
+const WEEK = [
+  { day: "Monday", text: "fixed a problem that's been annoying everyone for weeks." },
+  { day: "Tuesday", text: "helped a teammate get unstuck." },
+  { day: "Wednesday", text: "figured out a better way to do something." },
+];
+
 const HABITS = [
-  { icon: PenLine, title: "Capture", benefit: "Nothing worth mentioning gets lost.", body: "Log a win in under a minute. Add the outcome in your own words; no forced metrics." },
-  { icon: BookOpen, title: "Reflect", benefit: "You see how you're growing.", body: "Once a week, note what went well, what was hard and what's next." },
-  { icon: FileText, title: "Showcase", benefit: "You walk in prepared.", body: "Pick a month, a quarter or any date range, and download your wins with their impact, plus your weekly reflections." },
+  {
+    icon: PenLine, emoji: "✍️", title: "Catch the win",
+    body: "Something went well? Write it down. Something was harder than expected? That counts too. A couple of sentences will do.",
+  },
+  {
+    icon: BookOpen, emoji: "🌱", title: "Check in with yourself",
+    body: "Take a few minutes each week to reflect on what went well, what was tricky, and what you'd like to tackle next. Think of it as a debrief with yourself, minus the meeting invite.",
+  },
+  {
+    icon: PartyPopper, emoji: "🎉", title: "Look at you go",
+    body: "Pick a date range and turn your recorded wins and reflections into a review-ready summary. No archaeological expedition through Slack required.",
+  },
 ];
 
-const MOMENTS = [
-  { icon: Briefcase, title: "When appraisal season arrives", body: "Your wins and reflections are already there for whatever period your review covers, so you spend your time on the conversation instead of reconstructing the year." },
-  { icon: Sprout, title: "When you want to see your growth", body: "Look back across weeks and quarters at the projects, problems and lessons that show how your work has grown." },
-  { icon: TrendingUp, title: "When a new opportunity comes along", body: "Pull concrete examples for promotion discussions, career conversations and interviews from a record you already have." },
-];
-
-const TRUST = [
-  { icon: LockKeyhole, title: "Private to your account", body: "Only you can read your journal. Not other members, and not Winfolio's in-app admins: it's enforced on our servers, not just hidden in the app." },
-  { icon: Download, title: "Yours to take with you", body: "Export your wins to Excel, or download a review PDF with your wins, their impact and your reflections, whenever you want." },
-  { icon: FileSpreadsheet, title: "Bring your history", body: "Already keep a spreadsheet? Import it with our template; rows are checked before they're saved." },
+const WHY = [
+  { icon: Briefcase, lead: "Performance review coming up?", rest: "You've got examples." },
+  { icon: Sprout, lead: "Wondering whether you're growing?", rest: "Look back at the work you've done." },
+  { icon: MessageCircle, lead: "Someone asks what you've been working on?", rest: "For once, you don't have to say, “Oh, a bit of everything.”" },
 ];
 
 // Staggered entrance; skipped when the user prefers reduced motion.
@@ -92,6 +104,7 @@ export default function WinfolioLanding({ variant, showPreviewSwitch = false }: 
     t.focus,
   );
   const sampleLabel = cn("rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider", t.sample);
+  const h2 = "text-[clamp(1.9rem,4vw,2.6rem)] font-extrabold leading-[1.1] tracking-[-0.025em]";
 
   return (
     <div className={cn("min-h-screen font-['Plus_Jakarta_Sans',system-ui,sans-serif]", t.page)}>
@@ -111,7 +124,7 @@ export default function WinfolioLanding({ variant, showPreviewSwitch = false }: 
             <WinfolioLogo variant={variant} />
           </Link>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[15px]">
-            <a href="#in-action" className={cn("hidden sm:inline", t.link)}>How it works</a>
+            <a href="#how" className={cn("hidden sm:inline", t.link)}>How it works</a>
             <a href="#privacy" className={cn("hidden sm:inline", t.link)}>Privacy</a>
             <Link to="/auth" className={cn("font-bold", t.link)}>Sign in</Link>
           </div>
@@ -119,177 +132,156 @@ export default function WinfolioLanding({ variant, showPreviewSwitch = false }: 
       </header>
 
       <main>
-        {/* 01 Hero: the outcome, one primary action, and what the product looks like */}
+        {/* Hero */}
         <section className="mx-auto flex max-w-6xl flex-wrap items-center gap-12 px-4 pb-16 pt-14 sm:px-6 md:pt-20">
-          <div className="flex min-w-0 flex-[1_1_440px] flex-col gap-6">
+          <div className="flex min-w-0 flex-[1_1_460px] flex-col gap-5">
             <p className={cn("text-sm font-bold uppercase tracking-[0.12em]", t.accent, reveal)}>Your personal work journal</p>
-            <h1 className={cn("text-[clamp(2.4rem,5.5vw,3.75rem)] font-extrabold leading-[1.04] tracking-[-0.035em]", reveal)} style={{ animationDelay: "80ms" }}>
-              Never scramble to remember your impact again.
+            <h1 className={cn("text-[clamp(2.4rem,5.5vw,3.6rem)] font-extrabold leading-[1.05] tracking-[-0.035em]", reveal)} style={{ animationDelay: "80ms" }}>
+              You did a lot this week. Your brain disagrees. <Emoji>🫠</Emoji>
             </h1>
-            <p className={cn("max-w-xl text-lg leading-relaxed", t.muted, reveal)} style={{ animationDelay: "160ms" }}>
-              Capture the work you do, the problems you solve and the difference you make.
-              When review season arrives, your achievements are already there.
-            </p>
-            <div className={cn("flex flex-wrap items-center gap-x-6 gap-y-3", reveal)} style={{ animationDelay: "240ms" }}>
+            <div className={cn("flex max-w-xl flex-col gap-4 text-lg leading-relaxed", t.muted, reveal)} style={{ animationDelay: "160ms" }}>
+              <p>Fixed that annoying bug? Helped a teammate? Somehow survived six meetings that could've been emails?</p>
+              <p className={cn("font-semibold", t.accent)}>Those count as wins, by the way.</p>
+              <p>But a week later, they're buried under 37 new tasks and a suspicious number of unread messages.</p>
+              <p>
+                <span className="font-semibold text-current">Winfolio gives your work wins a home.</span> Jot them down as they happen,
+                add what changed, and get on with your day.
+              </p>
+              <p>
+                No big write-up. No humblebragging practice. No staring at a blank page three months later wondering
+                what you've been doing with your life.
+              </p>
+            </div>
+            <div className={cn("flex flex-wrap items-center gap-x-5 gap-y-3 pt-1", reveal)} style={{ animationDelay: "240ms" }}>
               <Link to="/auth" className={cn(button, t.primary, "hover:-translate-y-0.5 hover:shadow-lg")}>
-                Start your work journal <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                Save your first win <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
-              <span className={cn("text-sm font-semibold", t.subtle)}>Every win deserves a place.</span>
+              <span className={cn("text-sm font-semibold", t.subtle)}>Takes a moment now. Future you says thanks. <Emoji>💚</Emoji></span>
             </div>
           </div>
-
-          {/* Product preview built from the real data model, clearly marked as an example */}
-          <div className={cn("flex min-w-0 flex-[1_1_420px] flex-col gap-4", reveal)} style={{ animationDelay: "200ms" }} aria-label="Example of a logged win and a review summary">
-            <div className={cn("rounded-3xl border p-6 shadow-[0_24px_48px_-28px_rgba(11,11,18,0.35)]", t.surface)}>
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <span className="text-sm font-bold">A win worth remembering</span>
-                <span className={sampleLabel}>Example</span>
-              </div>
-              <p className="text-lg font-extrabold leading-snug">Improved the customer onboarding process</p>
-              <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
-                <span className={cn("rounded-full px-2.5 py-1", t.tints[0].bg, t.tints[0].ink)}>Process Improvement</span>
-                <span className={cn("rounded-full px-2.5 py-1", t.tints[2].bg, t.tints[2].ink)}>Done</span>
-              </div>
-              <div className={cn("mt-4 rounded-2xl p-4", t.tints[1].bg)}>
-                <p className={cn("text-xs font-bold uppercase tracking-wider", t.tints[1].ink)}>Impact</p>
-                <p className="mt-1 text-[15px] leading-relaxed">New customers reached their first project faster, and setup questions to support dropped.</p>
-              </div>
-            </div>
-            <div className={cn("flex items-center gap-4 rounded-3xl p-5", t.band)}>
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/15">
-                <FileText className="h-5 w-5" aria-hidden="true" />
-              </span>
-              <div className="min-w-0">
-                <p className="font-bold">Ready for your review</p>
-                <p className={cn("text-sm", t.bandMuted)}>Your wins, their impact and your reflections for any period, as a PDF.</p>
-              </div>
-            </div>
+          <div className={cn("min-w-0 flex-[1_1_380px]", reveal)} style={{ animationDelay: "200ms" }}>
+            <HeroIllustration variant={variant} className="mx-auto h-auto w-full max-w-[500px]" />
           </div>
         </section>
 
-        {/* 02 The problem, told as a short story */}
+        {/* 01 The problem */}
         <section className={cn("border-y", t.surface)}>
-          <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-16 sm:px-6 md:py-24">
-            <h2 className="text-[clamp(2rem,4.5vw,3rem)] font-extrabold leading-[1.08] tracking-[-0.03em]">
-              Every day, you do more than you realise.
-            </h2>
-            <p className={cn("text-lg leading-relaxed md:text-xl", t.muted)}>
-              You solve problems, help teammates, finish projects, and find better ways to work. But as one day
-              turns into another, those little wins are easy to forget.
-            </p>
-            <p className="text-lg leading-relaxed md:text-xl">Then comes the question:</p>
-            <blockquote className={cn("rounded-3xl px-6 py-5 text-[clamp(1.4rem,3vw,1.9rem)] font-extrabold leading-snug tracking-tight md:px-8", t.tints[1].bg)}>
-              “What have you achieved this year?”
-            </blockquote>
-            <p className={cn("text-lg leading-relaxed md:text-xl", t.muted)}>
-              Suddenly, you're trying to remember months of hard work.
-            </p>
-            <p className="text-lg font-semibold leading-relaxed md:text-xl">
-              Winfolio helps you keep track of your wins as they happen, so when the time comes to talk about
-              your work, your story is already there.
-            </p>
+          <div className="mx-auto flex max-w-3xl flex-col gap-8 px-4 py-16 sm:px-6 md:py-24">
+            <h2 className={h2}>Work happened. Where did the memories go?</h2>
+            <ol className="flex flex-col gap-3">
+              {WEEK.map(({ day, text }, i) => (
+                <li key={day} className={cn("flex flex-col gap-1 rounded-2xl px-5 py-4 sm:flex-row sm:items-baseline sm:gap-4", t.tints[i].bg)}>
+                  <span className={cn("w-28 shrink-0 text-sm font-extrabold uppercase tracking-wider", t.tints[i].ink)}>{day}</span>
+                  <span className="text-lg">{text}</span>
+                </li>
+              ))}
+              <li className={cn("flex flex-col gap-1 rounded-2xl px-5 py-4 sm:flex-row sm:items-baseline sm:gap-4", t.band)}>
+                <span className={cn("w-28 shrink-0 text-sm font-extrabold uppercase tracking-wider", t.bandMuted)}>Friday</span>
+                <span className="text-lg font-bold">“What did I even do this week?”</span>
+              </li>
+            </ol>
+            <div className="flex flex-col gap-3 text-lg leading-relaxed md:text-xl">
+              <p className={t.muted}>Your work doesn't disappear. Your memory just has other priorities.</p>
+              <p className="font-semibold">Winfolio helps you keep the receipts before your brain clears its cache.</p>
+            </div>
           </div>
         </section>
 
-        {/* 03 See it in action: one win becoming review evidence */}
-        <section id="in-action" className="mx-auto flex max-w-6xl scroll-mt-6 flex-col gap-10 px-4 py-16 sm:px-6 md:py-20">
-          <div className="flex max-w-2xl flex-col gap-3">
-            <h2 className="text-3xl font-extrabold tracking-tight md:text-4xl">From everyday work to review-ready evidence</h2>
-            <p className={cn("text-lg", t.muted)}>Three small habits. Here's what each one looks like.</p>
-          </div>
-          <ol className="grid gap-5 lg:grid-cols-3">
-            {HABITS.map(({ icon: Icon, title, benefit, body }, i) => (
-              <li key={title} className={cn("flex flex-col gap-4 rounded-3xl border p-6", t.surface)}>
+        {/* 02 How it works */}
+        <section id="how" className="mx-auto flex max-w-6xl scroll-mt-6 flex-col gap-10 px-4 py-16 sm:px-6 md:py-20">
+          <h2 className={cn(h2, "max-w-2xl")}>Three tiny habits. One less thing to panic about.</h2>
+          <ol className="grid gap-5 md:grid-cols-3">
+            {HABITS.map(({ icon: Icon, emoji, title, body }, i) => (
+              <li key={title} className={cn("flex flex-col gap-4 rounded-3xl border p-7 transition-transform duration-200 motion-safe:hover:-translate-y-1", t.surface)}>
                 <div className="flex items-center justify-between">
                   <span className={cn("flex h-11 w-11 items-center justify-center rounded-2xl", t.tints[i].bg)}>
                     <Icon className={cn("h-5 w-5", t.tints[i].ink)} aria-hidden="true" />
                   </span>
-                  <span className={cn("text-sm font-bold", t.subtle)}>Step {i + 1}</span>
+                  <span className={cn("text-sm font-bold", t.subtle)}>{i + 1}</span>
                 </div>
-                <div className="flex flex-col gap-1">
-                  <h3 className="text-xl font-extrabold">{title}</h3>
-                  <p className={cn("font-semibold", t.tints[i].ink)}>{benefit}</p>
-                </div>
+                <h3 className="text-xl font-extrabold">{title} <Emoji>{emoji}</Emoji></h3>
                 <p className={cn("leading-relaxed", t.muted)}>{body}</p>
-
-                {/* Example of what this step produces */}
-                <div className={cn("mt-auto rounded-2xl p-4 text-sm", t.tints[i].bg)}>
-                  <span className={cn(sampleLabel, "bg-white/70")}>Example</span>
-                  {i === 0 && (
-                    <div className="mt-3 flex flex-col gap-1.5">
-                      <p className="font-bold">Fixed the checkout timeout for large orders</p>
-                      <p className={cn("flex items-center gap-1.5 text-xs font-semibold", t.tints[i].ink)}>
-                        <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> Suggested category: Problem Solving
-                      </p>
-                    </div>
-                  )}
-                  {i === 1 && (
-                    <dl className="mt-3 flex flex-col gap-2">
-                      <div><dt className="text-xs font-bold uppercase tracking-wider opacity-80">What went well</dt><dd className="font-semibold">Shipped the checkout fix ahead of the sale.</dd></div>
-                      <div><dt className="text-xs font-bold uppercase tracking-wider opacity-80">What's next</dt><dd className="font-semibold">Add monitoring so it can't regress.</dd></div>
-                    </dl>
-                  )}
-                  {i === 2 && (
-                    <div className="mt-3 flex flex-col gap-1.5">
-                      <p className="font-bold">Q4 review · 9 wins · 6 reflections</p>
-                      <div className="flex flex-col gap-1">
-                        <p className="text-xs font-bold uppercase tracking-wider opacity-80">Problem Solving (4)</p>
-                        <p className="font-semibold">Fixed the checkout timeout</p>
-                        <p className="text-[13px]">Impact: no failed checkouts during the sale</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
               </li>
             ))}
           </ol>
-          <p className={cn("text-sm", t.subtle)}>Examples use sample data. Your summary contains only what you've recorded.</p>
         </section>
 
-        {/* 04 Moments that matter (replaces a generic FAQ) */}
+        {/* 03 Example win */}
         <section className={cn("border-y", t.surface)}>
-          <div className="mx-auto flex max-w-6xl flex-col gap-10 px-4 py-16 sm:px-6 md:py-20">
-            <h2 className="max-w-3xl text-3xl font-extrabold tracking-tight md:text-4xl">
-              Built for the moments your work needs to speak for itself
-            </h2>
-            <div className="grid gap-8 md:grid-cols-3">
-              {MOMENTS.map(({ icon: Icon, title, body }, i) => (
-                <div key={title} className="flex flex-col gap-3">
-                  <Icon className={cn("h-6 w-6", t.tints[i].ink)} aria-hidden="true" />
-                  <h3 className="text-lg font-extrabold">{title}</h3>
-                  <p className={cn("leading-relaxed", t.muted)}>{body}</p>
-                </div>
-              ))}
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-12 px-4 py-16 sm:px-6 md:py-20">
+            <div className="flex min-w-0 flex-[1_1_360px] flex-col gap-4">
+              <h2 className={h2}>Yes, that counts. And so does that.</h2>
+              <p className={cn("text-lg leading-relaxed", t.muted)}>
+                See? It doesn't have to be a company-wide launch or a dramatic promotion announcement.
+                Making something work better is worth remembering, too.
+              </p>
+            </div>
+            <div className={cn("min-w-0 flex-[1_1_420px] rounded-3xl border p-6 shadow-[0_24px_48px_-28px_rgba(11,11,18,0.35)]", t.surface)} aria-label="Example of a saved win">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <span className={cn("text-xs font-bold uppercase tracking-wider", t.subtle)}>Category · Process improvement</span>
+                <span className={sampleLabel}>Example</span>
+              </div>
+              <p className="text-xl font-extrabold leading-snug">Improved the customer onboarding process</p>
+              <span className={cn("mt-3 inline-flex rounded-full px-2.5 py-1 text-xs font-bold", t.tints[0].bg, t.tints[0].ink)}>Done</span>
+              <div className={cn("mt-4 rounded-2xl p-4", t.tints[1].bg)}>
+                <p className={cn("text-xs font-bold uppercase tracking-wider", t.tints[1].ink)}>What changed?</p>
+                <p className="mt-1 text-[15px] leading-relaxed">
+                  New customers reached their first project faster, and setup questions to support dropped.
+                </p>
+              </div>
             </div>
           </div>
         </section>
 
-        {/* 05 Trust and privacy: only what the implementation guarantees */}
-        <section id="privacy" className="mx-auto flex max-w-6xl scroll-mt-6 flex-col gap-10 px-4 py-16 sm:px-6 md:py-20">
-          <div className="flex max-w-2xl flex-col gap-3">
-            <h2 className="text-3xl font-extrabold tracking-tight md:text-4xl">Your record, under your control</h2>
-            <p className={cn("text-lg", t.muted)}>What you log about your work can be sensitive. Here's how Winfolio treats it.</p>
-          </div>
-          <div className="grid gap-5 md:grid-cols-3">
-            {TRUST.map(({ icon: Icon, title, body }) => (
-              <div key={title} className={cn("flex flex-col gap-3 rounded-3xl border p-6", t.surface)}>
-                <Icon className={cn("h-6 w-6", t.accent)} aria-hidden="true" />
-                <h3 className="text-lg font-extrabold">{title}</h3>
-                <p className={cn("leading-relaxed", t.muted)}>{body}</p>
+        {/* 04 Why it matters */}
+        <section className="mx-auto flex max-w-6xl flex-col gap-10 px-4 py-16 sm:px-6 md:py-20">
+          <h2 className={cn(h2, "max-w-3xl")}>For the days you need to remember what you're good at.</h2>
+          <div className="grid gap-8 md:grid-cols-3">
+            {WHY.map(({ icon: Icon, lead, rest }, i) => (
+              <div key={lead} className="flex flex-col gap-3">
+                <Icon className={cn("h-6 w-6", t.tints[i].ink)} aria-hidden="true" />
+                <p className="text-lg leading-relaxed">
+                  <span className="font-extrabold">{lead}</span> <span className={t.muted}>{rest}</span>
+                </p>
               </div>
             ))}
           </div>
+          <p className="text-lg font-semibold">Your wins, your reflections, your progress — all in one place.</p>
         </section>
 
-        {/* 06 Final call to action */}
-        <section className="mx-auto max-w-6xl px-4 pb-20 sm:px-6">
+        {/* 05 Privacy */}
+        <section id="privacy" className={cn("scroll-mt-6 border-y", t.surface)}>
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-10 px-4 py-16 sm:px-6 md:py-20">
+            <div className="flex min-w-0 flex-[1_1_380px] flex-col gap-4">
+              <h2 className={h2}>Your work journal. Your business.</h2>
+              <p className={cn("text-lg leading-relaxed", t.muted)}>Some work stories aren't meant for the group chat.</p>
+              <p className="text-lg leading-relaxed">
+                Your journal is private to your account, and you can export your wins whenever you need them.
+              </p>
+              <p className="text-lg font-semibold">Because your work history should be yours to keep.</p>
+            </div>
+            <ul className="flex min-w-0 flex-[1_1_380px] flex-col gap-3">
+              <li className={cn("flex items-start gap-3 rounded-2xl p-4", t.tints[0].bg)}>
+                <LockKeyhole className={cn("mt-0.5 h-5 w-5 shrink-0", t.tints[0].ink)} aria-hidden="true" />
+                <span>Only you can read your journal. Other members and in-app admins can't; it's enforced on our servers.</span>
+              </li>
+              <li className={cn("flex items-start gap-3 rounded-2xl p-4", t.tints[1].bg)}>
+                <Download className={cn("mt-0.5 h-5 w-5 shrink-0", t.tints[1].ink)} aria-hidden="true" />
+                <span>Export your wins to Excel, or download a review PDF, any time.</span>
+              </li>
+            </ul>
+          </div>
+        </section>
+
+        {/* Final call to action */}
+        <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 md:py-20">
           <div className={cn("flex flex-wrap items-center justify-between gap-6 rounded-[28px] px-8 py-12 md:px-12", t.band)}>
             <div className="flex max-w-xl flex-col gap-3">
-              <h2 className="text-3xl font-extrabold tracking-tight">Start with today's win.</h2>
-              <p className={t.bandMuted}>By your next review, you'll be glad you did.</p>
+              <h2 className="text-3xl font-extrabold tracking-tight">Every win deserves a place.</h2>
+              <p className={t.bandMuted}>Takes a moment now. Future you says thanks.</p>
             </div>
             <Link to="/auth" className={cn(button, t.bandButton, "hover:-translate-y-0.5")}>
-              Start your work journal
+              Save your first win <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
           </div>
         </section>
