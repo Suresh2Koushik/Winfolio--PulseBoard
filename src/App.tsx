@@ -17,6 +17,7 @@ import { Loader2 } from "lucide-react";
 const Auth = lazy(() => import("./pages/Auth"));
 const Onboard = lazy(() => import("./pages/Onboard"));
 const WinfolioLanding = lazy(() => import("./pages/WinfolioLanding"));
+const WinfolioPlayful = lazy(() => import("./pages/WinfolioPlayful"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Admin = lazy(() => import("./pages/Admin"));
 const CheckIns = lazy(() => import("./pages/CheckIns"));
@@ -46,7 +47,7 @@ const App = () => (
               <Route path="/auth" element={<Auth />} />
 
               {/* Landing page directions under review (Winfolio rebrand) */}
-              <Route path="/preview/pastel" element={<WinfolioLanding variant="pastel" showPreviewSwitch />} />
+              <Route path="/preview/pastel" element={<WinfolioPlayful showPreviewSwitch />} />
               <Route path="/preview/forest" element={<WinfolioLanding variant="forest" showPreviewSwitch />} />
 
               {/* Onboarding — no sidebar (first-time flow) */}

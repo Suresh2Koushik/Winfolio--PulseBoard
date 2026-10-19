@@ -1,0 +1,115 @@
+/*
+ * Winfolio playful landing animations. Only transform/opacity/stroke are animated
+ * (cheap on phones). Everything is switched off for prefers-reduced-motion, where
+ * elements simply show their finished state.
+ */
+
+/* ---------- entrances ---------- */
+@keyframes wf-float-in {
+  0%   { opacity: 0; transform: translateY(28px) rotate(-8deg) scale(0.94); }
+  70%  { opacity: 1; transform: translateY(-4px) rotate(-1deg) scale(1.01); }
+  100% { opacity: 1; transform: translateY(0) rotate(-3deg) scale(1); }
+}
+.wf-float-in { animation: wf-float-in 800ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+
+@keyframes wf-pop {
+  0%   { transform: scale(0); }
+  60%  { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+.wf-pop { animation: wf-pop 420ms cubic-bezier(0.34, 1.56, 0.64, 1) both; transform-origin: center; transform-box: fill-box; }
+
+/* Self-drawing strokes: set --len to the path length. */
+@keyframes wf-draw { from { stroke-dashoffset: var(--len, 40); } to { stroke-dashoffset: 0; } }
+.wf-draw {
+  stroke-dasharray: var(--len, 40);
+  stroke-dashoffset: var(--len, 40);
+  animation: wf-draw 450ms ease-out forwards;
+}
+
+/* ---------- sparkles & confetti ---------- */
+@keyframes wf-burst {
+  0%   { opacity: 0; transform: translate(0, 0) scale(0.3) rotate(0deg); }
+  15%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1) rotate(var(--rot)); }
+}
+.wf-confetti-piece { animation: wf-burst 1100ms cubic-bezier(0.2, 0.7, 0.3, 1) forwards; }
+
+@keyframes wf-twinkle {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  50%      { transform: scale(0.6) rotate(20deg); opacity: 0.55; }
+}
+.wf-twinkle { animation: wf-twinkle 1.8s ease-in-out 4; transform-origin: center; transform-box: fill-box; }
+
+/* ---------- mascot ---------- */
+@keyframes wf-breathe { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+.wf-breathe { animation: wf-breathe 3.2s ease-in-out infinite; }
+
+@keyframes wf-blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
+.wf-blink { animation: wf-blink 4.5s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }
+
+@keyframes wf-jump {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  30%      { transform: translateY(-16px) rotate(-6deg); }
+  55%      { transform: translateY(0) rotate(4deg); }
+  75%      { transform: translateY(-6px) rotate(0deg); }
+}
+.wf-jump { animation: wf-jump 900ms cubic-bezier(0.34, 1.56, 0.64, 1) 2; }
+
+/* ---------- cards ---------- */
+@keyframes wf-bounce {
+  0%, 100% { transform: scale(1) rotate(var(--tilt, 0deg)); }
+  35%      { transform: scale(1.035) rotate(calc(var(--tilt, 0deg) - 1deg)); }
+  65%      { transform: scale(0.99) rotate(calc(var(--tilt, 0deg) + 0.5deg)); }
+}
+.wf-bounce { animation: wf-bounce 520ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+@keyframes wf-wobble {
+  0%, 100% { transform: translate(var(--sx), var(--sy)) rotate(var(--sr)); }
+  25%      { transform: translate(var(--sx), var(--sy)) rotate(calc(var(--sr) - 4deg)); }
+  75%      { transform: translate(var(--sx), var(--sy)) rotate(calc(var(--sr) + 4deg)); }
+}
+.wf-wobble { animation: wf-wobble 500ms ease-in-out 2; }
+
+.wf-sticker {
+  transition: transform 260ms cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 200ms ease;
+}
+.wf-sticker:hover, .wf-sticker:focus-within {
+  transform: translateY(-4px) rotate(0deg) !important;
+  box-shadow: 6px 8px 0 #0b0b12;
+}
+
+@keyframes wf-wiggle { 0%, 100% { transform: rotate(0deg); } 30% { transform: rotate(-10deg); } 60% { transform: rotate(8deg); } }
+.wf-wiggle-on-hover:hover .wf-wiggle-target { animation: wf-wiggle 450ms ease-in-out; }
+
+/* ---------- final CTA ---------- */
+@keyframes wf-plane {
+  0%   { opacity: 0; transform: translate(calc(var(--travel, 300px) * -1), 70px) rotate(-14deg); }
+  12%  { opacity: 1; }
+  55%  { transform: translate(calc(var(--travel, 300px) * -0.45), -26px) rotate(-4deg); }
+  100% { opacity: 1; transform: translate(0, 0) rotate(10deg); }
+}
+.wf-plane { animation: wf-plane 1600ms cubic-bezier(0.45, 0.05, 0.25, 1) both; }
+
+@keyframes wf-pulse-once {
+  0%   { box-shadow: 0 0 0 0 rgba(196, 177, 255, 0.9); }
+  100% { box-shadow: 0 0 0 18px rgba(196, 177, 255, 0); }
+}
+.wf-pulse-once { animation: wf-pulse-once 900ms ease-out 1; }
+
+/* Generic reveal used with the in-view hook. */
+.wf-reveal { opacity: 0; transform: translateY(18px); transition: opacity 600ms ease, transform 700ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+.wf-reveal.is-visible { opacity: 1; transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .wf-float-in, .wf-pop, .wf-twinkle, .wf-breathe, .wf-blink, .wf-jump, .wf-bounce,
+  .wf-wobble, .wf-plane, .wf-pulse-once, .wf-confetti-piece {
+    animation: none !important;
+  }
+  .wf-float-in { transform: rotate(-3deg); }
+  .wf-draw { animation: none !important; stroke-dashoffset: 0; }
+  .wf-confetti-piece { display: none; }
+  .wf-reveal { opacity: 1; transform: none; transition: none; }
+  .wf-sticker, .wf-sticker:hover { transition: none; }
+  .wf-wiggle-on-hover:hover .wf-wiggle-target { animation: none; }
+}
