@@ -56,13 +56,6 @@ const THEMES = {
   },
 } as const;
 
-const PROBLEMS = [
-  "The meaningful wins from months ago are forgotten.",
-  "You remember the task, but not the outcome it led to.",
-  "Concrete examples for your review take days to dig up.",
-  "Growth in your skills and responsibilities goes unrecorded.",
-];
-
 const HABITS = [
   { icon: PenLine, title: "Capture", benefit: "Nothing worth mentioning gets lost.", body: "Log a win in under a minute. Add the outcome in your own words; no forced metrics." },
   { icon: BookOpen, title: "Reflect", benefit: "You see how you're growing.", body: "Once a week, note what went well, what was hard and what's next." },
@@ -174,24 +167,27 @@ export default function WinfolioLanding({ variant, showPreviewSwitch = false }: 
           </div>
         </section>
 
-        {/* 02 The problem */}
+        {/* 02 The problem, told as a short story */}
         <section className={cn("border-y", t.surface)}>
-          <div className="mx-auto flex max-w-6xl flex-wrap gap-10 px-4 py-16 sm:px-6 md:py-20">
-            <div className="flex min-w-0 flex-[1_1_320px] flex-col gap-4">
-              <h2 className="text-3xl font-extrabold tracking-tight md:text-4xl">Good work is easy to forget.</h2>
-              <p className={cn("text-lg leading-relaxed", t.muted)}>
-                Notes apps and spreadsheets can store your work. They don't help you turn it into evidence
-                when you need to explain your contribution.
-              </p>
-            </div>
-            <ul className="flex min-w-0 flex-[1_1_420px] flex-col gap-4">
-              {PROBLEMS.map((problem, i) => (
-                <li key={problem} className="flex items-start gap-3 text-[17px] leading-relaxed">
-                  <span className={cn("mt-2 h-2.5 w-2.5 shrink-0 rounded-full", t.tints[i % 3].bg)} aria-hidden="true" />
-                  {problem}
-                </li>
-              ))}
-            </ul>
+          <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-16 sm:px-6 md:py-24">
+            <h2 className="text-[clamp(2rem,4.5vw,3rem)] font-extrabold leading-[1.08] tracking-[-0.03em]">
+              Every day, you do more than you realise.
+            </h2>
+            <p className={cn("text-lg leading-relaxed md:text-xl", t.muted)}>
+              You solve problems, help teammates, finish projects, and find better ways to work. But as one day
+              turns into another, those little wins are easy to forget.
+            </p>
+            <p className="text-lg leading-relaxed md:text-xl">Then comes the question:</p>
+            <blockquote className={cn("rounded-3xl px-6 py-5 text-[clamp(1.4rem,3vw,1.9rem)] font-extrabold leading-snug tracking-tight md:px-8", t.tints[1].bg)}>
+              “What have you achieved this year?”
+            </blockquote>
+            <p className={cn("text-lg leading-relaxed md:text-xl", t.muted)}>
+              Suddenly, you're trying to remember months of hard work.
+            </p>
+            <p className="text-lg font-semibold leading-relaxed md:text-xl">
+              Winfolio helps you keep track of your wins as they happen, so when the time comes to talk about
+              your work, your story is already there.
+            </p>
           </div>
         </section>
 
