@@ -2,12 +2,13 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { UserMenu } from "@/components/UserMenu";
+import { WinfolioMark } from "@/components/brand/Brand";
 import { TEAMS_ENABLED } from "@/lib/features";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   LayoutDashboard,
-  BarChart3,
+  
   Target,
   CheckCircle2,
   Sparkles,
@@ -126,15 +127,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       >
         {/* Logo */}
         <div className={`flex items-center h-16 px-4 border-b border-border/50 ${collapsed ? "justify-center" : "gap-3"}`}>
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/25 shrink-0">
-            <BarChart3 className="w-5 h-5 text-white" />
-          </div>
+          <WinfolioMark variant="pastel" className="w-9 h-9 shrink-0" />
           {!collapsed && (
             <div className="animate-fade-in">
-              <h1 className="text-lg font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent leading-tight">
-                PulseBoard
-              </h1>
-              <p className="text-[10px] text-muted-foreground font-medium tracking-wider uppercase">Performance Intelligence</p>
+              <p className="text-lg font-extrabold tracking-tight leading-tight">Winfolio</p>
+              <p className="text-[11px] text-muted-foreground font-medium">Every win deserves a place.</p>
             </div>
           )}
         </div>
@@ -207,10 +204,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       >
         <div className="flex items-center justify-between h-16 px-4 border-b border-border/50">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/25">
-              <BarChart3 className="w-5 h-5 text-white" />
-            </div>
-            <h1 className="text-lg font-bold text-gradient">PulseBoard</h1>
+            <WinfolioMark variant="pastel" className="w-9 h-9" />
+            <p className="text-lg font-extrabold tracking-tight">Winfolio</p>
           </div>
           <button onClick={() => setMobileOpen(false)} aria-label="Close navigation" className="p-2 hover:bg-muted rounded-lg">
             <X className="h-5 w-5" />
@@ -284,7 +279,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             {/* Page title */}
             <div>
               <h2 className="text-lg font-semibold">
-                {filteredNav.find((n) => isActive(n.path))?.label || "PulseBoard"}
+                {filteredNav.find((n) => isActive(n.path))?.label || "Winfolio"}
               </h2>
             </div>
           </div>

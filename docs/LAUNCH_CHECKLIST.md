@@ -1,4 +1,4 @@
-# PulseBoard launch checklist
+# Winfolio launch checklist
 
 Firebase project: `pulseboard--project` (from `.firebaserc`), Firestore in `asia-south1`.
 Live at **https://pulseboard--project.web.app**. Last updated 2026-10-18.
@@ -89,6 +89,6 @@ These points come from the old code's behaviour. I couldn't see the live databas
 
 ## 7. Branding
 
-- Landing page: personal/employer credit replaced with a neutral "© PulseBoard" footer; hero copy made general.
+- Renamed to **Winfolio** (app, sign-in, page title, favicon, PDF). Home page is the animated Version 1 (pastel) with Momo the mascot.
 - Default categories: replaced with 10 general, review-aligned categories (Delivery & Execution, Customer & Business Impact, Problem Solving, Process Improvement, Collaboration, Leadership & Mentoring, Learning & Growth, Knowledge Sharing, Culture & Community, Other), with keyword suggestions tuned to the role chosen at onboarding. Existing users keep their categories and can use **Settings → Apply recommended categories**.
 - Still open: product name/trademark check, logo and colours, custom domain, favicon, Privacy Policy and Terms pages.

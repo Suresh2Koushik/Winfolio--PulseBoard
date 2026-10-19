@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -13,6 +13,7 @@ import { FirebaseError } from "firebase/app";
 import { auth } from "@/lib/firebase";
 import { ensureUserProfile } from "@/lib/userProfile";
 import { useAuth } from "@/contexts/AuthContext";
+import { WinfolioMark } from "@/components/brand/Brand";
 import { TEAMS_ENABLED } from "@/lib/features";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { BarChart3, Loader2, Eye, EyeOff } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 import { z } from "zod";
 
 const emailSchema = z.string().trim().email("Invalid email address").max(255, "Email too long");
@@ -152,15 +153,13 @@ const Auth = () => {
 
       <Card className="w-full max-w-md border-2 shadow-2xl backdrop-blur-sm bg-card/95 relative z-10">
         <CardHeader className="text-center space-y-4">
-          <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-primary via-primary to-accent flex items-center justify-center shadow-lg shadow-primary/25 transform hover:scale-105 transition-transform">
-            <BarChart3 className="w-12 h-12 text-primary-foreground" />
-          </div>
+          <Link to="/" className="mx-auto rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" aria-label="Winfolio home">
+            <WinfolioMark variant="pastel" className="w-16 h-16" />
+          </Link>
           <div>
-            <CardTitle className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              PulseBoard
-            </CardTitle>
+            <CardTitle className="text-3xl font-extrabold tracking-tight">Winfolio</CardTitle>
             <CardDescription className="text-base mt-2">
-              Work & Performance Intelligence Platform
+              Every win deserves a place.
             </CardDescription>
           </div>
         </CardHeader>

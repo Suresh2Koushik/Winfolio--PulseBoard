@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import "@/components/landing/playful.css";
 
 /**
- * Winfolio landing page, Version 1 (pastel) with playful animations.
+ * Winfolio home page (Version 1, pastel) with playful animations and Momo the mascot.
  * Product claims match what the app does today (see docs/LAUNCH_CHECKLIST.md).
  * Every animation has a still, finished state for prefers-reduced-motion.
  */
@@ -78,7 +78,10 @@ function HappyWin() {
           <DoodleArrow className="mb-1 h-10 w-14 rotate-180" />
           that counts!
         </div>
-        <Mascot pose={phase === 2 ? "celebrate" : "idle"} className="h-32 w-28" />
+        <div className="flex flex-col items-center">
+          <Mascot pose={phase === 2 ? "celebrate" : "idle"} className="h-32 w-28" />
+          <span className={cn("-mt-1 rotate-2 text-lg leading-none text-[#5B21B6]", doodleFont)} aria-hidden="true">Momo</span>
+        </div>
       </div>
     </div>
   );
@@ -320,18 +323,9 @@ const WHY = [
 ];
 
 // ---------------------------------------------------------------- page
-export default function WinfolioPlayful({ showPreviewSwitch = false }: { showPreviewSwitch?: boolean }) {
+export default function WinfolioPlayful() {
   return (
     <div className="min-h-screen overflow-x-clip bg-[#FAFAFC] font-['Plus_Jakarta_Sans',system-ui,sans-serif] text-[#0B0B12]">
-      {showPreviewSwitch && (
-        <div className="bg-[#16161D] px-4 py-2 text-center text-sm text-white">
-          Preview: Version 1 · Pastel mix (animated) ·{" "}
-          <Link to="/preview/forest" className="font-semibold underline underline-offset-4 hover:no-underline">
-            Switch to Version 2 · Forest green
-          </Link>
-        </div>
-      )}
-
       <header className="border-b-2 border-[#0B0B12] bg-white">
         <nav aria-label="Main" className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6">
           <Link to="/" className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5B21B6]">

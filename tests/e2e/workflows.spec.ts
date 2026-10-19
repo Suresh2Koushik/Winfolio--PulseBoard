@@ -64,7 +64,7 @@ async function chooseOption(page: Page, trigger: ReturnType<Page["locator"]>, op
   await page.getByRole("option", { name: option }).click();
 }
 
-test.describe.serial("PulseBoard core workflows", () => {
+test.describe.serial("Winfolio team workflows (v2 features)", () => {
   let alice: Page;
   let bob: Page;
   let admin: Page;

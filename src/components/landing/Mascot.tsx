@@ -8,7 +8,7 @@ interface MascotProps {
 }
 
 /**
- * Winfolio's notebook mascot (first draft). Decorative: hidden from screen readers.
+ * Momo, Winfolio's notebook mascot (first draft). Decorative: hidden from screen readers.
  * Idle: breathes and blinks. Celebrate: arms up, open smile, jumps.
  * Thumbs: a thumbs-up with a wink-free grin.
  */

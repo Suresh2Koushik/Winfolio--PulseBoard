@@ -7,7 +7,6 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { UserDataProvider } from "@/contexts/UserDataContext";
 import AppLayout from "@/components/AppLayout";
-import Landing from "./pages/Landing";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { TEAMS_ENABLED } from "@/lib/features";
@@ -16,7 +15,6 @@ import { Loader2 } from "lucide-react";
 // Signed-in pages load on demand so the landing page stays small.
 const Auth = lazy(() => import("./pages/Auth"));
 const Onboard = lazy(() => import("./pages/Onboard"));
-const WinfolioLanding = lazy(() => import("./pages/WinfolioLanding"));
 const WinfolioPlayful = lazy(() => import("./pages/WinfolioPlayful"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Admin = lazy(() => import("./pages/Admin"));
@@ -43,12 +41,8 @@ const App = () => (
             <Suspense fallback={<PageLoader />}>
             <Routes>
               {/* Public routes — no sidebar */}
-              <Route path="/" element={<Landing />} />
+              <Route path="/" element={<WinfolioPlayful />} />
               <Route path="/auth" element={<Auth />} />
-
-              {/* Landing page directions under review (Winfolio rebrand) */}
-              <Route path="/preview/pastel" element={<WinfolioPlayful showPreviewSwitch />} />
-              <Route path="/preview/forest" element={<WinfolioLanding variant="forest" showPreviewSwitch />} />
 
               {/* Onboarding — no sidebar (first-time flow) */}
               <Route path="/onboard" element={<ProtectedRoute allowIncompleteProfile><Onboard /></ProtectedRoute>} />

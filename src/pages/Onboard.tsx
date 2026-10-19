@@ -123,7 +123,7 @@ export default function Onboard() {
 
       await Promise.all([...categoryPromises, ...teamPromises]);
 
-      toast.success("All set! Welcome to PulseBoard.");
+      toast.success("All set! Welcome to Winfolio.");
       navigate("/dashboard");
     } catch (error) {
       console.error("Error completing setup:", error);
@@ -151,7 +151,7 @@ export default function Onboard() {
             Let's get you started
           </h1>
           <p className="text-muted-foreground text-lg">
-            Complete a few details to personalize your PulseBoard experience.
+            A few quick details and you're ready to save your first win.
           </p>
         </div>
 

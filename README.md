@@ -1,6 +1,6 @@
-# PulseBoard
+# Winfolio
 
-Work and performance tracker. Employees log activities, weekly check-ins and goals; managers see their direct reports' check-ins and goals and give feedback with action items; admins manage roles and reporting lines.
+Winfolio is a personal work journal: save your wins as they happen, write a short weekly reflection, track goals, and turn it all into a review-ready summary for any period. v1 is individual-only; team features (managers, feedback, action items) are built but switched off behind `VITE_FEATURE_TEAMS` for a later release.
 
 ## Stack
 

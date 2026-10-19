@@ -44,6 +44,20 @@ test.describe.serial("Individual mode (v1)", () => {
     admin = await newPage(browser, "admin");
   });
 
+  test("home page introduces Winfolio and leads to sign-up", async () => {
+    await page.goto("/");
+    await expect(page).toHaveTitle(/Winfolio/);
+    await expect(page.getByRole("heading", { level: 1 })).toContainText("You did a lot this week.");
+    // Interactive example works on the live page.
+    const done = page.getByRole("button", { name: "Done" });
+    await done.click();
+    await expect(done).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByText("Look at you go!")).toBeVisible();
+    await page.getByRole("link", { name: /Save your first win/ }).first().click();
+    await expect(page).toHaveURL(/\/auth$/);
+    await expect(page.getByText("Every win deserves a place.").first()).toBeVisible();
+  });
+
   test("sign-up and onboarding have no manager step", async () => {
     await page.goto("/auth");
     await page.getByRole("tab", { name: "Sign Up" }).click();

@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// PulseBoard Firestore security rules.
+// Winfolio Firestore security rules.
 //
 // Access model
 //   - Every document belongs to one user (userId / employeeId).
