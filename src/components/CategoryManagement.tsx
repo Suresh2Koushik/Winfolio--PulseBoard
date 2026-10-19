@@ -13,6 +13,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Edit2, Trash2, X, Sparkles, Palette, Wand2 } from "lucide-react";
 import { toast } from "sonner";
+import { useConfirm } from "@/components/app/ui";
 
 const EMPTY_FORM = {
   name: "",
@@ -29,6 +30,7 @@ export function CategoryManagement() {
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [keywordInput, setKeywordInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const confirm = useConfirm();
 
   const resetForm = () => {
     setFormData(EMPTY_FORM);
@@ -47,12 +49,17 @@ export function CategoryManagement() {
     setIsOpen(true);
   };
 
-  const handleDelete = async (category: UserCategory) => {
-    if (!confirm(`Delete "${category.name}"? Existing activities keep their category label.`)) return;
-    setLoading(true);
-    await deleteCategory(category.id);
-    setLoading(false);
-  };
+  const handleDelete = (category: UserCategory) =>
+    confirm.ask({
+      title: `Delete "${category.name}"?`,
+      body: "Wins already in this category keep their label.",
+      action: "Delete category",
+      onConfirm: async () => {
+        setLoading(true);
+        await deleteCategory(category.id);
+        setLoading(false);
+      },
+    });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -326,6 +333,7 @@ export function CategoryManagement() {
           </form>
         </DialogContent>
       </Dialog>
+      {confirm.dialog}
     </div>
   );
 }

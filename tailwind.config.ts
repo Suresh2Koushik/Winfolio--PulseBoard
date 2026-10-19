@@ -13,6 +13,10 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ["'Plus Jakarta Sans'", "system-ui", "-apple-system", "sans-serif"],
+        doodle: ["Caveat", "cursive"],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -46,6 +50,18 @@ export default {
         card: {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
+        },
+        // Status colours: used across the app, previously undefined (rendered colourless).
+        success: "hsl(var(--success))",
+        warning: "hsl(var(--warning))",
+        info: "hsl(var(--info))",
+        pastel: {
+          blue: "hsl(var(--pastel-blue))",
+          "blue-ink": "hsl(var(--pastel-blue-ink))",
+          violet: "hsl(var(--pastel-violet))",
+          "violet-ink": "hsl(var(--pastel-violet-ink))",
+          pink: "hsl(var(--pastel-pink))",
+          "pink-ink": "hsl(var(--pastel-pink-ink))",
         },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",

@@ -1,178 +1,150 @@
 import { useState } from "react";
-import { Plus, Calendar, Loader2, Search } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Plus, Search } from "lucide-react";
+import { parseISO } from "date-fns";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CheckInForm } from "@/components/CheckInForm";
 import { CheckInCard } from "@/components/CheckInCard";
+import { EmptyState, ListSkeleton, Page, PageHeader, useConfirm } from "@/components/app/ui";
 import { useCheckIns } from "@/hooks/useCheckIns";
 import { useGoals } from "@/hooks/useGoals";
+import { useCelebrate } from "@/contexts/CelebrationContext";
 import { CheckIn } from "@/types";
-import { parseISO } from "date-fns";
+import { cn } from "@/lib/utils";
+
+const FILTERS = [
+    { id: "all", label: "All" },
+    { id: "month", label: "This month" },
+    { id: "challenges", label: "With challenges" },
+] as const;
+type Filter = (typeof FILTERS)[number]["id"];
 
 export default function CheckIns() {
     const { checkIns, loading, addCheckIn, updateCheckIn, deleteCheckIn } = useCheckIns();
     const { goals } = useGoals();
+    const celebrate = useCelebrate();
+    const confirm = useConfirm();
     const [formOpen, setFormOpen] = useState(false);
     const [editingCheckIn, setEditingCheckIn] = useState<CheckIn | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
+    const [filter, setFilter] = useState<Filter>("all");
 
-    const handleSave = async (data: Omit<CheckIn, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => {
-        if (editingCheckIn) {
-            await updateCheckIn(editingCheckIn.id, data);
-            setEditingCheckIn(null);
-        } else {
-            await addCheckIn(data);
-        }
-        setFormOpen(false);
-    };
-
-    const handleEdit = (checkIn: CheckIn) => {
-        setEditingCheckIn(checkIn);
+    const openNew = () => {
+        setEditingCheckIn(null);
         setFormOpen(true);
     };
 
-    const handleDelete = async (id: string) => {
-        if (confirm("Are you sure you want to delete this reflection?")) {
-            await deleteCheckIn(id);
+    const handleOpenChange = (open: boolean) => {
+        setFormOpen(open);
+        if (!open) setEditingCheckIn(null);
+    };
+
+    const handleSave = async (data: Omit<CheckIn, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => {
+        if (editingCheckIn) {
+            if (await updateCheckIn(editingCheckIn.id, data)) handleOpenChange(false);
+            return;
+        }
+        if (await addCheckIn(data)) {
+            handleOpenChange(false);
+            celebrate("Reflection saved. Future you says thanks!", { pose: "thumbs", confetti: false });
         }
     };
 
-    const filteredCheckIns = checkIns.filter(
-        (c) =>
-            c.workSummary.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            c.achievements?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            c.blockers?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-
-    // Group by month
-    const groupedByMonth = filteredCheckIns.reduce((acc, checkIn) => {
-        const monthKey = parseISO(checkIn.weekStart).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long'
+    const handleDelete = (id: string) =>
+        confirm.ask({
+            title: "Delete this reflection?",
+            body: "It will be removed from your journal and future reviews. This can't be undone.",
+            action: "Delete reflection",
+            onConfirm: () => void deleteCheckIn(id),
         });
-        if (!acc[monthKey]) acc[monthKey] = [];
-        acc[monthKey].push(checkIn);
+
+    const q = searchQuery.trim().toLowerCase();
+    const now = new Date();
+    const visible = checkIns
+        .filter((c) => !q || [c.workSummary, c.achievements, c.blockers, c.supportNeeded]
+            .some((field) => (field || "").toLowerCase().includes(q)))
+        .filter((c) => {
+            if (filter === "challenges") return Boolean(c.blockers?.trim());
+            if (filter === "month") {
+                const start = parseISO(c.weekStart);
+                return start.getMonth() === now.getMonth() && start.getFullYear() === now.getFullYear();
+            }
+            return true;
+        });
+
+    const groupedByMonth = visible.reduce((acc, checkIn) => {
+        const monthKey = parseISO(checkIn.weekStart).toLocaleDateString("en-US", { year: "numeric", month: "long" });
+        (acc[monthKey] ??= []).push(checkIn);
         return acc;
     }, {} as Record<string, CheckIn[]>);
 
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center py-24">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
-        );
-    }
-
     return (
-        <div className="bg-gradient-to-br from-background via-background to-secondary/20">
-            <div className="p-4 md:p-6 max-w-5xl mx-auto">
-                <header className="mb-8">
-                    <h1 className="text-2xl md:text-3xl font-bold mb-1 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                        Weekly Reflections
-                    </h1>
-                    <p className="text-muted-foreground text-sm">
-                        A few minutes each week on what went well, what was hard, and what's next
-                    </p>
-                </header>
+        <Page className="max-w-4xl">
+            <PageHeader
+                title="Weekly Reflections"
+                subtitle="A few minutes each week on what went well, what was hard, and what's next."
+                actions={
+                    <button type="button" onClick={openNew} className="inline-flex min-h-[40px] items-center gap-2 rounded-full bg-foreground px-4 text-sm font-bold text-background">
+                        <Plus className="h-4 w-4" aria-hidden="true" /> New reflection
+                    </button>
+                }
+            />
 
-                <div className="flex flex-col sm:flex-row gap-3 mb-6">
-                    <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                        <Input
-                            placeholder="Search reflections..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-10"
-                        />
-                    </div>
-                    <Button onClick={() => { setEditingCheckIn(null); setFormOpen(true); }} className="gap-2">
-                        <Plus className="h-4 w-4" />
-                        New Reflection
-                    </Button>
-                </div>
-
-                <Tabs defaultValue="all" className="space-y-6">
-                    <TabsList>
-                        <TabsTrigger value="all">All Reflections</TabsTrigger>
-                        <TabsTrigger value="recent">This Month</TabsTrigger>
-                        <TabsTrigger value="blockers">With Blockers</TabsTrigger>
-                    </TabsList>
-
-                    <TabsContent value="all" className="space-y-8">
-                        {Object.keys(groupedByMonth).length === 0 ? (
-                            <div className="text-center py-16 bg-card rounded-xl border-2 border-dashed">
-                                <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                                <h3 className="text-lg font-semibold mb-2">No reflections yet</h3>
-                                <p className="text-muted-foreground mb-4">
-                                    Take a moment to reflect on your week. Your future self will thank you at review time.
-                                </p>
-                                <Button onClick={() => setFormOpen(true)}>
-                                    <Plus className="h-4 w-4 mr-2" />
-                                    Write your first reflection
-                                </Button>
-                            </div>
-                        ) : (
-                            Object.entries(groupedByMonth).map(([month, monthCheckIns]) => (
-                                <div key={month}>
-                                    <h2 className="text-lg font-semibold mb-4 text-muted-foreground">{month}</h2>
-                                    <div className="space-y-4">
-                                        {monthCheckIns.map((checkIn) => (
-                                            <CheckInCard
-                                                key={checkIn.id}
-                                                checkIn={checkIn}
-                                                goals={goals}
-                                                onEdit={handleEdit}
-                                                onDelete={handleDelete}
-                                            />
-                                        ))}
-                                    </div>
-                                </div>
-                            ))
-                        )}
-                    </TabsContent>
-
-                    <TabsContent value="recent" className="space-y-4">
-                        {filteredCheckIns
-                            .filter((c) => {
-                                const now = new Date();
-                                const start = parseISO(c.weekStart);
-                                return start.getMonth() === now.getMonth() && start.getFullYear() === now.getFullYear();
-                            })
-                            .map((checkIn) => (
-                                <CheckInCard
-                                    key={checkIn.id}
-                                    checkIn={checkIn}
-                                    goals={goals}
-                                    onEdit={handleEdit}
-                                    onDelete={handleDelete}
-                                />
-                            ))}
-                    </TabsContent>
-
-                    <TabsContent value="blockers" className="space-y-4">
-                        {filteredCheckIns
-                            .filter((c) => c.blockers && c.blockers.trim().length > 0)
-                            .map((checkIn) => (
-                                <CheckInCard
-                                    key={checkIn.id}
-                                    checkIn={checkIn}
-                                    goals={goals}
-                                    onEdit={handleEdit}
-                                    onDelete={handleDelete}
-                                    expanded
-                                />
-                            ))}
-                    </TabsContent>
-                </Tabs>
-
-                <CheckInForm
-                    open={formOpen}
-                    onOpenChange={setFormOpen}
-                    onSave={handleSave}
-                    editCheckIn={editingCheckIn}
+            {loading ? (
+                <ListSkeleton rows={3} />
+            ) : checkIns.length === 0 ? (
+                <EmptyState
+                    pose="thumbs"
+                    title="No reflections yet"
+                    body="Take a moment to reflect on your week. Your future self will thank you at review time."
+                    action={<button type="button" onClick={openNew} className="mt-1 rounded-full bg-foreground px-5 py-2.5 font-bold text-background">Write your first reflection</button>}
                 />
-            </div>
-        </div>
+            ) : (
+                <>
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div role="group" aria-label="Filter reflections" className="flex flex-wrap gap-1 rounded-full bg-muted p-1">
+                            {FILTERS.map((f) => (
+                                <button
+                                    key={f.id}
+                                    type="button"
+                                    aria-pressed={filter === f.id}
+                                    onClick={() => setFilter(f.id)}
+                                    className={cn("rounded-full px-4 py-1.5 text-sm font-semibold transition-colors",
+                                        filter === f.id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
+                                >
+                                    {f.label}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="relative md:w-72">
+                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+                            <Input aria-label="Search reflections" placeholder="Search reflections" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="rounded-full pl-9" />
+                        </div>
+                    </div>
+
+                    {visible.length === 0 ? (
+                        <p className="rounded-2xl border-2 border-dashed py-10 text-center text-muted-foreground">No reflections match.</p>
+                    ) : (
+                        Object.entries(groupedByMonth).map(([month, monthCheckIns]) => (
+                            <section key={month} className="space-y-3">
+                                <h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">{month}</h2>
+                                {monthCheckIns.map((checkIn) => (
+                                    <CheckInCard
+                                        key={checkIn.id}
+                                        checkIn={checkIn}
+                                        goals={goals}
+                                        onEdit={(c) => { setEditingCheckIn(c); setFormOpen(true); }}
+                                        onDelete={handleDelete}
+                                        expanded={filter === "challenges"}
+                                    />
+                                ))}
+                            </section>
+                        ))
+                    )}
+                </>
+            )}
+
+            <CheckInForm open={formOpen} onOpenChange={handleOpenChange} onSave={handleSave} editCheckIn={editingCheckIn} />
+            {confirm.dialog}
+        </Page>
     );
 }

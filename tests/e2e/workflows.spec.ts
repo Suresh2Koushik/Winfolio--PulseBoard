@@ -48,7 +48,7 @@ async function signUp(page: Page, person: { email: string; name: string }, team:
   await expect(page.getByText("Roofing Core Vertical")).toHaveCount(0);
   await page.getByRole("button", { name: /Complete Setup/ }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
-  await expect(page.getByRole("heading", { name: new RegExp(`Welcome back, ${person.name.split(" ")[0]}`) })).toBeVisible();
+  await expect(page.getByRole("heading", { name: new RegExp(`Good (morning|afternoon|evening), ${person.name.split(" ")[0]}`) })).toBeVisible();
 }
 
 async function signIn(page: Page, email: string) {
@@ -94,26 +94,28 @@ test.describe.serial("Winfolio team workflows (v2 features)", () => {
 
   test("employee logs a dated activity and a quarter activity", async () => {
     await alice.goto("/dashboard");
-    await alice.getByRole("button", { name: "Add Work Activity" }).click();
-    const dialog = alice.getByRole("dialog");
+    const logWin = alice.getByRole("complementary").first().getByRole("button", { name: "Log a win" });
+    await logWin.click();
+    const dialog = alice.getByRole("dialog", { name: "Log a win" });
     // Role-tuned keyword suggestion ("hotfix" is an engineering keyword).
     await dialog.locator("#title").fill("Hotfix for login outage");
     await expect(dialog.getByRole("button", { name: /Suggested: Problem Solving/ })).toBeVisible();
     await dialog.locator("#title").fill("Shipped onboarding revamp");
-    await dialog.getByRole("button", { name: /Capture Achievement/ }).click();
-    await expect(alice.getByText("Activity added successfully")).toBeVisible();
-    await expect(alice.getByRole("heading", { name: "Shipped onboarding revamp" })).toBeVisible();
+    await dialog.getByRole("button", { name: "Save win" }).click();
+    await expect(alice.getByText("Win saved! Look at you go.").first()).toBeVisible();
+    await expect(alice.getByRole("region", { name: "Recent wins" }).getByText("Shipped onboarding revamp")).toBeVisible();
 
     // Quarter-level entry must stay in the chosen quarter (previously forced into Q1).
-    await alice.getByRole("button", { name: "Add Work Activity" }).click();
-    await dialog.getByText("Quarter", { exact: true }).click();
-    await chooseOption(alice, dialog.getByRole("combobox").nth(1), "Q3");
+    await logWin.click();
+    await dialog.getByRole("button", { name: "Quarter", exact: true }).click();
+    await chooseOption(alice, dialog.getByRole("combobox", { name: "Quarter" }), "Q3");
     await dialog.locator("#title").fill("Q3 partner programme");
-    await dialog.getByRole("button", { name: /Capture Achievement/ }).click();
-    await expect(alice.getByText("Activity added successfully").first()).toBeVisible();
+    await dialog.getByRole("button", { name: "Save win" }).click();
+    await expect(dialog).toHaveCount(0);
 
-    await alice.getByRole("tab", { name: "Quarter" }).click();
-    const quarterSelect = alice.getByRole("tabpanel").getByRole("combobox").nth(1);
+    await alice.goto("/wins");
+    await alice.getByRole("button", { name: "By quarter" }).click();
+    const quarterSelect = alice.getByRole("main").getByRole("combobox").nth(1);
     await chooseOption(alice, quarterSelect, `Q3 ${year}`);
     await expect(alice.getByRole("heading", { name: "Q3 partner programme" })).toBeVisible();
   });
@@ -124,7 +126,7 @@ test.describe.serial("Winfolio team workflows (v2 features)", () => {
     await alice.locator("#workSummary").fill("Finished the onboarding revamp and started partner work.");
     await alice.locator("#blockers").fill("Waiting on API keys from partner");
     await alice.getByRole("button", { name: "Save Reflection" }).click();
-    await expect(alice.getByText("Reflection saved")).toBeVisible();
+    await expect(alice.getByText(/Reflection saved/).first()).toBeVisible();
     await expect(alice.getByText("Finished the onboarding revamp").first()).toBeVisible();
   });
 
@@ -138,11 +140,12 @@ test.describe.serial("Winfolio team workflows (v2 features)", () => {
   });
 
   test("employee attaches evidence to an activity, then removes it", async () => {
-    await alice.goto("/dashboard?tab=activities");
-    const card = alice.locator(".card-glass", { has: alice.getByRole("heading", { name: "Shipped onboarding revamp" }) });
-    await card.getByRole("button").filter({ has: alice.locator("svg.lucide-pencil") }).click();
+    await alice.goto("/wins");
+    const card = alice.getByRole("listitem").filter({ hasText: "Shipped onboarding revamp" });
+    await card.getByRole("button", { name: 'Edit "Shipped onboarding revamp"' }).click();
 
-    const dialog = alice.getByRole("dialog");
+    const dialog = alice.getByRole("dialog", { name: "Edit win" });
+    await dialog.getByRole("button", { name: "Add more detail" }).click();
     // 1x1 transparent PNG
     const png = Buffer.from(
       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
@@ -150,25 +153,25 @@ test.describe.serial("Winfolio team workflows (v2 features)", () => {
     );
     await dialog.locator("#attachment-input").setInputFiles({ name: "evidence.png", mimeType: "image/png", buffer: png });
     await expect(dialog.getByText("evidence.png")).toBeVisible();
-    await dialog.getByRole("button", { name: /Update Achievement/ }).click();
-    await expect(alice.getByText("Activity updated successfully")).toBeVisible();
-    await expect(card.getByRole("button", { name: /View Attachment/ })).toBeVisible();
+    await dialog.getByRole("button", { name: "Save changes" }).click();
+    await expect(alice.getByText("Win updated")).toBeVisible();
+    await expect(card.getByRole("button", { name: "View attachment" })).toBeVisible();
 
-    await card.getByRole("button").filter({ has: alice.locator("svg.lucide-pencil") }).click();
+    await card.getByRole("button", { name: 'Edit "Shipped onboarding revamp"' }).click();
     await dialog.getByRole("button", { name: "Remove attachment" }).click();
-    await dialog.getByRole("button", { name: /Update Achievement/ }).click();
-    await expect(card.getByRole("button", { name: /View Attachment/ })).toHaveCount(0);
+    await dialog.getByRole("button", { name: "Save changes" }).click();
+    await expect(card.getByRole("button", { name: "View attachment" })).toHaveCount(0);
   });
 
   test("employee exports to Excel, imports the template, and generates a PDF", async () => {
-    await alice.goto("/dashboard?tab=activities");
+    await alice.goto("/wins");
 
     const exported = alice.waitForEvent("download");
     await alice.getByRole("button", { name: "Export" }).click();
-    expect((await exported).suggestedFilename()).toMatch(/^work-activities-.*\.xlsx$/);
+    expect((await exported).suggestedFilename()).toMatch(/^winfolio-wins-.*\.xlsx$/);
 
     const templateDownload = alice.waitForEvent("download");
-    await alice.getByRole("button", { name: "Template" }).click();
+    await alice.getByRole("button", { name: "Download the template" }).click();
     const template = await templateDownload;
     const templatePath = await template.path();
 
@@ -180,9 +183,9 @@ test.describe.serial("Winfolio team workflows (v2 features)", () => {
     });
     await expect(alice.getByText("1 activities imported successfully!")).toBeVisible();
     await alice.getByRole("button", { name: "Done" }).click();
-    await expect(alice.getByRole("heading", { name: "Customer Success Workshop" })).toBeVisible();
+    await expect(alice.getByText("Customer Success Workshop")).toBeVisible();
 
-    await alice.goto("/dashboard?tab=review");
+    await alice.goto("/reviews");
     const pdf = alice.waitForEvent("download");
     await alice.getByRole("button", { name: /Download review PDF/ }).click();
     expect((await pdf).suggestedFilename()).toMatch(/\.pdf$/);
@@ -244,10 +247,10 @@ test.describe.serial("Winfolio team workflows (v2 features)", () => {
     expect(appErrors).toEqual([]);
   });
 
-  test("Reviews link opens the reviews tab", async () => {
+  test("Reviews link opens the reviews page", async () => {
     await alice.goto("/dashboard");
-    await alice.getByRole("button", { name: "Reviews" }).first().click();
-    await expect(alice).toHaveURL(/tab=review/);
+    await alice.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Reviews" }).click();
+    await expect(alice).toHaveURL(/\/reviews$/);
     await expect(alice.getByText("Prepare my performance review")).toBeVisible();
   });
 });

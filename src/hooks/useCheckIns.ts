@@ -76,7 +76,7 @@ export function useCheckIns() {
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
             });
-            toast.success('Reflection saved');
+            // Success is celebrated by the page (Momo), so no toast here.
             return docRef.id;
         } catch (error) {
             console.error('Error adding check-in:', error);
@@ -85,8 +85,8 @@ export function useCheckIns() {
         }
     }, [user, managerId]);
 
-    const updateCheckIn = useCallback(async (id: string, data: Partial<CheckIn>) => {
-        if (!user) return;
+    const updateCheckIn = useCallback(async (id: string, data: Partial<CheckIn>): Promise<boolean> => {
+        if (!user) return false;
 
         try {
             const { id: _id, userId: _userId, createdAt: _createdAt, ...fields } = data;
@@ -96,9 +96,11 @@ export function useCheckIns() {
                 updatedAt: serverTimestamp(),
             });
             toast.success('Reflection updated');
+            return true;
         } catch (error) {
             console.error('Error updating check-in:', error);
             toast.error('Failed to update reflection');
+            return false;
         }
     }, [user, managerId]);
 

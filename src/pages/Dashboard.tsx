@@ -1,440 +1,270 @@
-import { useState } from "react";
-import { Activity } from "@/types";
+import { useEffect, useMemo } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { differenceInCalendarDays, endOfWeek, format, isWithinInterval, parseISO, startOfMonth, startOfQuarter, startOfWeek } from "date-fns";
+import { ArrowRight, BookOpen, Check, FileText, Lightbulb, Plus, Target } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { useActivities } from "@/hooks/useActivities";
-import { useUserData } from "@/hooks/useUserData";
 import { useCheckIns } from "@/hooks/useCheckIns";
 import { useGoals } from "@/hooks/useGoals";
 import { useFeedback } from "@/hooks/useFeedback";
-import { exportToExcel } from "@/utils/exportData";
-import { generateExcelTemplate } from "@/utils/importData";
-import { toast } from "sonner";
-import { getWeekNumber } from "@/utils/categorization";
-import { StatsCard } from "@/components/StatsCard";
-import { ActivityCard } from "@/components/ActivityCard";
-import { ActivityForm } from "@/components/ActivityForm";
-import { UploadModal } from "@/components/UploadModal";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Plus,
-  Search,
-  Calendar,
-  TrendingUp,
-  BarChart3,
-  Target,
-  Download,
-  Upload,
-  FileSpreadsheet,
-  Loader2,
-  CheckCircle2,
-  Clock,
-  Sparkles,
-  LayoutDashboard,
-  MessageSquare,
-  CalendarDays,
-  FolderTree,
-  Settings2,
-} from "lucide-react";
-import { parseISO } from "date-fns";
-import { FeedbackCard, ActionItemList } from "@/components/FeedbackComponents";
-import { WeeklyView } from "./WeeklyView";
-import { QuarterView } from "./QuarterView";
-import { CategoryView } from "./CategoryView";
-import { ReviewGenerator } from "./ReviewGenerator";
-import { CategoryManagement } from "@/components/CategoryManagement";
-import { AlertsPanel } from "@/components/AlertsPanel";
-import { DashboardCharts } from "@/components/DashboardCharts";
-import { ChangeLogDisplay, WhatsNewBanner } from "@/components/ChangeLogDisplay";
-import { useAuth } from "@/contexts/AuthContext";
+import { useLogWin } from "@/contexts/LogWinContext";
 import { TEAMS_ENABLED } from "@/lib/features";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { buildReview, periodOptions } from "@/lib/review";
+import { Mascot } from "@/components/landing/Mascot";
+import { EmptyState, ListSkeleton, Page, StatTile, WinRow } from "@/components/app/ui";
+import { FeedbackCard, ActionItemList } from "@/components/FeedbackComponents";
+import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
+// Old dashboard tabs now live on their own pages.
+const LEGACY_TABS: Record<string, string> = {
+  review: "/reviews",
+  settings: "/settings",
+  activities: "/wins",
+  weekly: "/wins?view=week",
+  categories: "/wins?view=category",
+  quarter: "/wins?view=quarter",
+};
 
-const DASHBOARD_TABS = ["overview", "activities", "weekly", "categories", "quarter", "review", "settings"];
+function greeting(now: Date) {
+  const h = now.getHours();
+  return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+}
 
-export default function Dashboard() {
+export default function Home() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { userProfile } = useAuth();
-  const { activities, loading: loadingActivities, addActivity, updateActivity, deleteActivity: deleteActivityMutation, refetch } = useActivities();
-  const { categories, teams } = useUserData();
-  const { checkIns, loading: loadingCheckIns } = useCheckIns();
-  const { goals, stats: goalStats, loading: loadingGoals } = useGoals();
-  const {
-    feedback,
-    actionItems,
-    stats: feedbackStats,
-    loading: loadingFeedback,
-    acknowledgeFeedback,
-    updateActionItemStatus,
-  } = useFeedback();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const { activities, loading: loadingWins } = useActivities();
+  const { checkIns, loading: loadingReflections } = useCheckIns();
+  const { goals, loading: loadingGoals } = useGoals();
+  const { feedback, actionItems, acknowledgeFeedback, updateActionItemStatus } = useFeedback();
+  const openLogWin = useLogWin();
 
-  const [formOpen, setFormOpen] = useState(false);
-  const [uploadOpen, setUploadOpen] = useState(false);
-  const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const requestedTab = searchParams.get("tab") ?? "";
-  const activeTab = DASHBOARD_TABS.includes(requestedTab) ? requestedTab : "overview";
-  const setActiveTab = (tab: string) => {
-    setSearchParams(tab === "overview" ? {} : { tab }, { replace: true });
-  };
+  useEffect(() => {
+    const target = LEGACY_TABS[searchParams.get("tab") ?? ""];
+    if (target) navigate(target, { replace: true });
+  }, [searchParams, navigate]);
 
-  // Closing the form must also leave edit mode, or "Add New" would reopen the old activity.
-  const handleFormOpenChange = (open: boolean) => {
-    setFormOpen(open);
-    if (!open) setEditingActivity(null);
-  };
+  const now = new Date();
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
+  const quarter = periodOptions(now).quarter[0];
 
-  const openNewActivity = () => {
-    setEditingActivity(null);
-    setFormOpen(true);
-  };
+  const stats = useMemo(() => {
+    const thisWeek = activities.filter((a) => isWithinInterval(parseISO(a.date), { start: weekStart, end: weekEnd })).length;
+    const review = buildReview(activities, checkIns, quarter);
+    const reflectionsThisMonth = checkIns.filter((c) => parseISO(c.weekStart) >= startOfMonth(now)).length;
+    const reflectedThisWeek = checkIns.some((c) => isWithinInterval(parseISO(c.weekStart), { start: weekStart, end: weekEnd }));
+    return { thisWeek, review, reflectionsThisMonth, reflectedThisWeek };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activities, checkIns]);
 
-  const loading = loadingActivities || loadingCheckIns || loadingGoals || loadingFeedback;
-
-  const handleSave = async (activityData: Omit<Activity, "id" | "userId" | "createdAt" | "updatedAt">) => {
-    if (editingActivity) {
-      await updateActivity(editingActivity.id, activityData);
-    } else {
-      await addActivity(activityData);
+  // Gentle, on-brand nudges based on real data (at most two).
+  const nudges = useMemo(() => {
+    const list: { key: string; icon: typeof BookOpen; text: string; to: string; cta: string }[] = [];
+    const day = now.getDay(); // 0 Sun … 6 Sat
+    if (!stats.reflectedThisWeek && (day === 0 || day >= 4)) {
+      list.push({ key: "reflect", icon: BookOpen, text: "Take a moment to reflect on your week.", to: "/reflections", cta: "Write a reflection" });
     }
-    handleFormOpenChange(false);
-  };
-
-  const handleEdit = (activity: Activity) => {
-    setEditingActivity(activity);
-    setFormOpen(true);
-  };
-
-  const handleDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this activity?")) {
-      await deleteActivityMutation(id);
+    const soon = goals
+      .filter((g) => g.status !== "completed")
+      .map((g) => ({ g, days: differenceInCalendarDays(parseISO(g.endDate), now) }))
+      .filter(({ days }) => days >= 0 && days <= 7)
+      .sort((a, b) => a.days - b.days)[0];
+    if (soon) {
+      list.push({
+        key: "goal", icon: Target,
+        text: `"${soon.g.title}" wraps up ${soon.days === 0 ? "today" : soon.days === 1 ? "tomorrow" : `in ${soon.days} days`}. A good moment to update its progress.`,
+        to: "/goals", cta: "Open goals",
+      });
     }
-  };
+    const missingImpact = stats.review.wins.length - stats.review.withImpact;
+    if (missingImpact > 0) {
+      list.push({
+        key: "impact", icon: Lightbulb,
+        text: `${missingImpact} of your wins this quarter ${missingImpact === 1 ? "has" : "have"} no impact noted. Adding what changed makes them stronger evidence.`,
+        to: "/wins", cta: "Review wins",
+      });
+    }
+    return list.slice(0, 2);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [goals, stats]);
 
-  const currentWeek = getWeekNumber(new Date());
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
-
-  const weekActivities = activities.filter((a) => a.weekNumber === currentWeek && parseISO(a.date).getFullYear() === currentYear);
-  const monthActivities = activities.filter((a) => {
-    const date = parseISO(a.date);
-    return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
-  });
-
-  const categoryCount = monthActivities.reduce((acc, activity) => {
-    acc[activity.category] = (acc[activity.category] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-
-  const mostActiveCategory = Object.entries(categoryCount).sort((a, b) => b[1] - a[1])[0]?.[0] || "None";
-
-  const filteredActivities = activities.filter(
-    (activity) =>
-      activity.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (activity.description || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-      activity.category.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const recentActivities = filteredActivities.slice(0, 5);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-10 h-10 animate-spin text-primary" />
-          <p className="text-muted-foreground animate-pulse">Loading your dashboard...</p>
-        </div>
-      </div>
-    );
-  }
+  const setup = [
+    { done: activities.length > 0, label: "Log your first win" },
+    { done: checkIns.length > 0, label: "Write a weekly reflection" },
+    { done: goals.length > 0, label: "Set a goal" },
+  ];
+  const setupDone = setup.filter((s) => s.done).length;
+  const loading = loadingWins || loadingReflections || loadingGoals;
+  const firstName = userProfile?.fullName?.split(" ")[0];
+  const activeGoals = goals.filter((g) => g.status !== "completed");
 
   return (
-    <div className="bg-gradient-to-br from-background via-background to-secondary/20">
-      <div className="p-4 md:p-6 max-w-7xl mx-auto">
-        <WhatsNewBanner />
+    <Page>
+      <header className="space-y-1">
+        <h1 className="text-[clamp(1.6rem,3vw,2.1rem)] font-extrabold tracking-[-0.02em]">
+          {greeting(now)}{firstName ? `, ${firstName}` : ""}
+        </h1>
+        <p className="text-muted-foreground">
+          {loading ? "Getting your week together…" : stats.thisWeek > 0
+            ? `You've logged ${stats.thisWeek} win${stats.thisWeek === 1 ? "" : "s"} this week. Look at you go.`
+            : "No wins logged yet this week. What went well today?"}
+        </p>
+      </header>
 
-        {/* Welcome Banner */}
-        <div className="mb-6">
-          <div className="flex items-center gap-2 mb-1">
-            <Badge variant="outline" className="text-xs border-primary/20 text-primary">
-              {userProfile?.role === 'admin' ? 'Admin Access' : userProfile?.role === 'manager' ? 'Manager Access' : 'Employee Portal'}
-            </Badge>
-            {userProfile?.team && (
-              <Badge variant="outline" className="text-xs">
-                {userProfile.team}
-              </Badge>
-            )}
-          </div>
-          <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-primary via-primary/80 to-accent bg-clip-text text-transparent">
-            Welcome back, {userProfile?.fullName?.split(' ')[0] || 'User'}
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1">Track your performance and reach your goals</p>
+      {/* Primary action */}
+      <section className="relative flex flex-wrap items-center justify-between gap-4 overflow-hidden rounded-2xl border-2 border-foreground bg-foreground px-6 py-5 text-background">
+        <div className="space-y-1">
+          <p className="text-xl font-extrabold">Got a win? Save it while it's fresh.</p>
+          <p className="text-sm text-background/75">A couple of sentences will do.</p>
         </div>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => openLogWin()}
+            className="inline-flex min-h-[48px] items-center gap-2 rounded-full bg-background px-6 font-bold text-foreground transition-transform hover:-translate-y-0.5"
+          >
+            <Plus className="h-4 w-4" aria-hidden="true" /> Log a win
+          </button>
+          <Mascot className="hidden h-20 w-16 sm:block" />
+        </div>
+      </section>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="flex flex-wrap w-full lg:w-auto h-auto p-1 gap-1 justify-start">
-            <TabsTrigger value="overview" className="gap-2">
-              <LayoutDashboard className="h-4 w-4" />
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="activities" className="gap-2">
-              <BarChart3 className="h-4 w-4" />
-              Activities
-            </TabsTrigger>
-            <TabsTrigger value="weekly" className="gap-2">
-              <CalendarDays className="h-4 w-4" />
-              Weekly
-            </TabsTrigger>
-            <TabsTrigger value="categories" className="gap-2">
-              <FolderTree className="h-4 w-4" />
-              Categories
-            </TabsTrigger>
-            <TabsTrigger value="quarter" className="gap-2">
-              <Calendar className="h-4 w-4" />
-              Quarter
-            </TabsTrigger>
-            <TabsTrigger value="review" className="gap-2">
-              <Sparkles className="h-4 w-4" />
-              Reviews
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="gap-2">
-              <Settings2 className="h-4 w-4" />
-              Settings
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview" className="space-y-6 animate-fade-in">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatsCard
-                title="Weekly Activities"
-                value={weekActivities.length}
-                icon={Calendar}
-                trend={`Week ${currentWeek}`}
-              />
-              <StatsCard
-                title="Goals on Track"
-                value={goalStats.onTrack}
-                icon={Target}
-                trend={`${goalStats.completed} completed`}
-              />
-              <StatsCard
-                title="Active Goals"
-                value={goalStats.total - goalStats.completed}
-                icon={TrendingUp}
-                trend={`${goalStats.atRisk} at risk`}
-              />
-              {TEAMS_ENABLED ? (
-                <StatsCard
-                  title="Pending Feedback"
-                  value={feedbackStats.unacknowledged}
-                  icon={MessageSquare}
-                  trend={`${feedbackStats.openActionItems} action items`}
-                />
-              ) : (
-                <StatsCard
-                  title="Reflections This Month"
-                  value={checkIns.filter((c) => {
-                    const d = parseISO(c.weekStart);
-                    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-                  }).length}
-                  icon={MessageSquare}
-                  trend="Weekly reflections"
-                />
-              )}
-            </div>
-
-            {/* Analytics Charts */}
-            <DashboardCharts activities={activities} goalStats={goalStats} />
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 space-y-6">
-                <AlertsPanel
-                  checkIns={checkIns}
-                  goals={goals}
-                  actionItems={actionItems}
-                />
-
-                {TEAMS_ENABLED && (feedback.length > 0 || actionItems.length > 0) && (
-                  <Card className="card-glass border-0 shadow-xl overflow-hidden">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="flex items-center gap-2">
-                        <MessageSquare className="h-5 w-5 text-primary" />
-                        Feedback & Action Items
-                      </CardTitle>
-                      <CardDescription>From your manager</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {[...feedback]
-                        .sort((a, b) => Number(a.acknowledged) - Number(b.acknowledged))
-                        .slice(0, 3)
-                        .map((item) => (
-                          <FeedbackCard key={item.id} feedback={item} onAcknowledge={acknowledgeFeedback} />
-                        ))}
-                      {actionItems.length > 0 && (
-                        <ActionItemList items={actionItems} onUpdateStatus={updateActionItemStatus} />
-                      )}
-                    </CardContent>
-                  </Card>
+      {/* First-run checklist */}
+      {!loading && setupDone < setup.length && (
+        <section aria-labelledby="setup-heading" className="flex flex-col gap-3 rounded-2xl bg-pastel-violet p-5 md:flex-row md:items-center md:gap-6">
+          <div className="min-w-[180px] space-y-2">
+            <h2 id="setup-heading" className="font-extrabold">Get set up · {setupDone} of {setup.length}</h2>
+            <Progress value={(setupDone / setup.length) * 100} className="h-2 bg-background/70" aria-label={`${setupDone} of ${setup.length} setup steps done`} />
+          </div>
+          <ul className="flex flex-wrap gap-2">
+            {setup.map(({ done, label }, i) => (
+              <li key={label}>
+                {done ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-background/80 px-3 py-1.5 text-sm text-muted-foreground line-through">
+                    <Check className="h-4 w-4 text-success" aria-hidden="true" /> {label}
+                  </span>
+                ) : i === 0 ? (
+                  <button type="button" onClick={() => openLogWin()} className="rounded-full bg-foreground px-3 py-1.5 text-sm font-bold text-background">{label}</button>
+                ) : (
+                  <Link to={i === 1 ? "/reflections" : "/goals"} className="inline-block rounded-full border-2 border-foreground bg-background px-3 py-1 text-sm font-bold">{label}</Link>
                 )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
-                <Card className="card-glass border-0 shadow-xl overflow-hidden">
-                  <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <div>
-                      <CardTitle>Recent Impact</CardTitle>
-                      <CardDescription>Your latest tracked work activities</CardDescription>
+      {/* Real numbers only */}
+      {loading ? (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-[108px] rounded-2xl" />)}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatTile tint="blue" label="Wins this week" value={stats.thisWeek} note={`Week of ${format(weekStart, "MMM d")}`} />
+          <StatTile tint="violet" label={`Wins in ${quarter.label}`} value={stats.review.wins.length} note="So far this quarter" />
+          <StatTile tint="pink" label="With impact noted" value={stats.review.wins.length ? `${stats.review.withImpact} of ${stats.review.wins.length}` : "—"} note={`Wins in ${quarter.label}`} />
+          <StatTile tint="ink" label="Reflections" value={stats.reflectionsThisMonth} note={`In ${format(now, "MMMM")}`} />
+        </div>
+      )}
+
+      {nudges.length > 0 && (
+        <ul className="grid gap-3 md:grid-cols-2">
+          {nudges.map(({ key, icon: Icon, text, to, cta }) => (
+            <li key={key} className="flex items-start gap-3 rounded-2xl border bg-card p-4">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-pastel-blue text-pastel-blue-ink"><Icon className="h-4 w-4" aria-hidden="true" /></span>
+              <div className="space-y-1">
+                <p className="text-sm">{text}</p>
+                <Link to={to} className="text-sm font-bold text-accent hover:underline">{cta}</Link>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+        {/* Recent wins */}
+        <section aria-labelledby="recent-heading" className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 id="recent-heading" className="text-lg font-extrabold">Recent wins</h2>
+            {activities.length > 0 && <Link to="/wins" className="text-sm font-bold text-accent hover:underline">See all</Link>}
+          </div>
+          {loadingWins ? (
+            <ListSkeleton rows={3} />
+          ) : activities.length === 0 ? (
+            <EmptyState
+              title="Your story starts with your first win."
+              body="Fixed something? Helped someone? Made a thing a little better? That counts."
+              action={<button type="button" onClick={() => openLogWin()} className="mt-1 rounded-full bg-foreground px-5 py-2.5 font-bold text-background">Save your first win</button>}
+            />
+          ) : (
+            <ul className="flex flex-col gap-3">
+              {activities.slice(0, 5).map((win) => <WinRow key={win.id} win={win} onEdit={openLogWin} />)}
+            </ul>
+          )}
+        </section>
+
+        <div className="flex flex-col gap-6">
+          {/* Review preparation */}
+          <section aria-labelledby="review-heading" className="space-y-4 rounded-2xl border bg-card p-5">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-pastel-pink text-pastel-pink-ink"><FileText className="h-5 w-5" aria-hidden="true" /></span>
+              <h2 id="review-heading" className="font-extrabold leading-tight">Prepare my performance review</h2>
+            </div>
+            {loading ? (
+              <Skeleton className="h-16 rounded-xl" />
+            ) : (
+              <dl className="grid grid-cols-3 gap-2 text-center">
+                <div className="rounded-xl bg-muted p-2"><dt className="text-xs text-muted-foreground">Wins</dt><dd className="text-xl font-extrabold">{stats.review.wins.length}</dd></div>
+                <div className="rounded-xl bg-muted p-2"><dt className="text-xs text-muted-foreground">With impact</dt><dd className="text-xl font-extrabold">{stats.review.withImpact}</dd></div>
+                <div className="rounded-xl bg-muted p-2"><dt className="text-xs text-muted-foreground">Reflections</dt><dd className="text-xl font-extrabold">{stats.review.reflections.length}</dd></div>
+              </dl>
+            )}
+            <p className="text-sm text-muted-foreground">Everything you've recorded in {quarter.label}, ready to turn into a summary and PDF.</p>
+            <Link to="/reviews" className="flex min-h-[44px] items-center justify-center gap-2 rounded-full border-2 border-foreground font-bold transition-colors hover:bg-muted">
+              Prepare review <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </section>
+
+          {/* Goals, only when there are some */}
+          {activeGoals.length > 0 && (
+            <section aria-labelledby="goals-heading" className="space-y-4 rounded-2xl border bg-card p-5">
+              <div className="flex items-center justify-between">
+                <h2 id="goals-heading" className="font-extrabold">Goals</h2>
+                <Link to="/goals" className="text-sm font-bold text-accent hover:underline">All goals</Link>
+              </div>
+              <ul className="space-y-4">
+                {activeGoals.slice(0, 3).map((g) => (
+                  <li key={g.id} className="space-y-1.5">
+                    <div className="flex justify-between gap-3 text-sm">
+                      <span className="truncate font-semibold">{g.title}</span>
+                      <span className={cn("shrink-0", g.status === "at_risk" || g.status === "behind" ? "font-bold text-pastel-pink-ink" : "text-muted-foreground")}>
+                        {g.status === "at_risk" ? "At risk · " : g.status === "behind" ? "Behind · " : ""}{g.progress}%
+                      </span>
                     </div>
-                    <Button variant="ghost" size="sm" onClick={() => setActiveTab('activities')}>
-                      View All
-                    </Button>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {recentActivities.length === 0 ? (
-                        <div className="text-center py-8">
-                          <p className="text-muted-foreground mb-4">No recent activities found.</p>
-                          <Button onClick={openNewActivity}>Add Your First Activity</Button>
-                        </div>
-                      ) : (
-                        recentActivities.map((activity) => (
-                          <ActivityCard key={activity.id} activity={activity} onEdit={handleEdit} onDelete={handleDelete} />
-                        ))
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+                    <Progress value={g.progress} className="h-2" aria-label={`${g.title}: ${g.progress}%`} />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
-              <div className="space-y-6">
-                <ChangeLogDisplay />
-
-                <Card className="bg-gradient-to-br from-primary/5 to-accent/5 border-primary/10">
-                  <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <Clock className="h-5 w-5 text-primary" />
-                      Quick Actions
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <Button onClick={openNewActivity} className="w-full justify-start gap-2 h-11 shadow-lg shadow-primary/20">
-                      <Plus className="h-4 w-4" />
-                      Add Work Activity
-                    </Button>
-                    <Button variant="outline" onClick={() => navigate('/check-ins')} className="w-full justify-start gap-2 h-11">
-                      <CheckCircle2 className="h-4 w-4" />
-                      Write weekly reflection
-                    </Button>
-                    <Button variant="outline" onClick={() => navigate('/goals')} className="w-full justify-start gap-2 h-11">
-                      <Target className="h-4 w-4" />
-                      View Performance Goals
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="activities" className="space-y-6 animate-fade-in">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                <Input
-                  placeholder="Search activities..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const categoryNames = categories.map((c) => c.name);
-                    generateExcelTemplate(categoryNames, teams);
-                    toast.success("Template downloaded!");
-                  }}
-                  className="gap-2 hidden md:flex"
-                >
-                  <FileSpreadsheet className="h-4 w-4" />
-                  Template
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setUploadOpen(true)}
-                  className="gap-2"
-                >
-                  <Upload className="h-4 w-4" />
-                  Import
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    exportToExcel(activities);
-                    toast.success("Excel file downloaded!");
-                  }}
-                  className="gap-2"
-                  disabled={activities.length === 0}
-                >
-                  <Download className="h-4 w-4" />
-                  Export
-                </Button>
-                <Button size="sm" onClick={openNewActivity} className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Add New
-                </Button>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              {filteredActivities.length === 0 ? (
-                <div className="text-center py-12 border-2 border-dashed rounded-xl">
-                  <p className="text-muted-foreground">No matching activities found.</p>
-                </div>
-              ) : (
-                filteredActivities.map((activity) => (
-                  <ActivityCard key={activity.id} activity={activity} onEdit={handleEdit} onDelete={handleDelete} />
-                ))
-              )}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="weekly">
-            <WeeklyView activities={activities} onEdit={handleEdit} onDelete={handleDelete} />
-          </TabsContent>
-
-          <TabsContent value="categories">
-            <CategoryView activities={activities} onEdit={handleEdit} onDelete={handleDelete} />
-          </TabsContent>
-
-          <TabsContent value="quarter">
-            <QuarterView activities={activities} onEdit={handleEdit} onDelete={handleDelete} />
-          </TabsContent>
-
-          <TabsContent value="review">
-            <ReviewGenerator activities={activities} checkIns={checkIns} />
-          </TabsContent>
-
-          <TabsContent value="settings">
-            <CategoryManagement />
-          </TabsContent>
-        </Tabs>
-
-        <ActivityForm open={formOpen} onOpenChange={handleFormOpenChange} onSave={handleSave} editActivity={editingActivity} />
-        <UploadModal
-          open={uploadOpen}
-          onOpenChange={setUploadOpen}
-          onImportComplete={() => {
-            refetch();
-            toast.success("Activities imported successfully!");
-          }}
-        />
+          {/* Team features (v2) */}
+          {TEAMS_ENABLED && (feedback.length > 0 || actionItems.length > 0) && (
+            <section className="space-y-3 rounded-2xl border bg-card p-5">
+              <h2 className="font-extrabold">From your manager</h2>
+              {[...feedback].sort((a, b) => Number(a.acknowledged) - Number(b.acknowledged)).slice(0, 2).map((item) => (
+                <FeedbackCard key={item.id} feedback={item} onAcknowledge={acknowledgeFeedback} />
+              ))}
+              {actionItems.length > 0 && <ActionItemList items={actionItems} onUpdateStatus={updateActionItemStatus} />}
+            </section>
+          )}
+        </div>
       </div>
-    </div>
+    </Page>
   );
 }

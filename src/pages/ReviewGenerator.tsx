@@ -11,6 +11,7 @@ import { format, parseISO, startOfQuarter } from "date-fns";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserData } from "@/hooks/useUserData";
+import { useCelebrate } from "@/contexts/CelebrationContext";
 import { categoryDisplay } from "@/lib/categories";
 import { buildReview, customPeriod, hasImpact, periodOptions, ReviewPeriod } from "@/lib/review";
 
@@ -25,6 +26,7 @@ const CUSTOM = "custom";
 export function ReviewGenerator({ activities, checkIns }: ReviewGeneratorProps) {
   const { userProfile, user } = useAuth();
   const { categories } = useUserData();
+  const celebrate = useCelebrate();
   const options = useMemo(() => periodOptions(), []);
   const [periodId, setPeriodId] = useState<string>(options.quarter[0].id);
   const [customFrom, setCustomFrom] = useState(format(startOfQuarter(new Date()), "yyyy-MM-dd"));
@@ -54,7 +56,7 @@ export function ReviewGenerator({ activities, checkIns }: ReviewGeneratorProps) 
         periodLabel: period.label,
         userName: userProfile?.fullName || user?.email || "Your review",
       });
-      toast.success("Your review PDF is ready");
+      celebrate("Your review PDF is ready. Go get them!", { pose: "celebrate" });
     } catch (error) {
       console.error("PDF export error:", error);
       toast.error("Couldn't create the PDF. Please try again.");

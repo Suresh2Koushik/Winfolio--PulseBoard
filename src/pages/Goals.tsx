@@ -1,221 +1,163 @@
 import { useState } from "react";
-import { Plus, Target, Loader2, Search, Filter } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Plus, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GoalForm } from "@/components/GoalForm";
 import { GoalCard } from "@/components/GoalCard";
+import { EmptyState, ListSkeleton, Page, PageHeader, StatTile, useConfirm } from "@/components/app/ui";
 import { useGoals } from "@/hooks/useGoals";
+import { useCelebrate } from "@/contexts/CelebrationContext";
 import { Goal, GoalStatus, GoalPriority } from "@/types";
+import { cn } from "@/lib/utils";
 
 export default function Goals() {
     const { goals, loading, stats, addGoal, updateGoal, updateGoalProgress, deleteGoal } = useGoals();
+    const celebrate = useCelebrate();
+    const confirm = useConfirm();
     const [formOpen, setFormOpen] = useState(false);
     const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState<GoalStatus | "all">("all");
     const [priorityFilter, setPriorityFilter] = useState<GoalPriority | "all">("all");
+    const [showCompleted, setShowCompleted] = useState(false);
+
+    const openNew = () => {
+        setEditingGoal(null);
+        setFormOpen(true);
+    };
+
+    const handleOpenChange = (open: boolean) => {
+        setFormOpen(open);
+        if (!open) setEditingGoal(null);
+    };
 
     const handleSave = async (data: Omit<Goal, 'id' | 'userId' | 'linkedCheckInIds' | 'createdAt' | 'updatedAt'>) => {
         if (editingGoal) {
             await updateGoal(editingGoal.id, data);
-            setEditingGoal(null);
         } else {
             await addGoal(data);
         }
-        setFormOpen(false);
+        handleOpenChange(false);
     };
 
-    const handleEdit = (goal: Goal) => {
-        setEditingGoal(goal);
-        setFormOpen(true);
-    };
-
-    const handleDelete = async (id: string) => {
-        if (confirm("Are you sure you want to delete this goal?")) {
-            await deleteGoal(id);
-        }
-    };
+    const handleDelete = (id: string) =>
+        confirm.ask({
+            title: "Delete this goal?",
+            body: "The goal and its progress will be removed. This can't be undone.",
+            action: "Delete goal",
+            onConfirm: () => void deleteGoal(id),
+        });
 
     const handleUpdateProgress = async (id: string, progress: number) => {
+        const before = goals.find((g) => g.id === id)?.progress ?? 0;
         await updateGoalProgress(id, progress);
+        if (progress >= 100 && before < 100) celebrate("Goal complete! That's a big one.");
     };
 
+    const q = searchQuery.trim().toLowerCase();
     const filteredGoals = goals.filter((goal) => {
-        const matchesSearch = goal.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            goal.description?.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesSearch = !q || goal.title.toLowerCase().includes(q) || (goal.description || "").toLowerCase().includes(q);
         const matchesStatus = statusFilter === "all" || goal.status === statusFilter;
         const matchesPriority = priorityFilter === "all" || goal.priority === priorityFilter;
         return matchesSearch && matchesStatus && matchesPriority;
     });
-
-    const activeGoals = filteredGoals.filter(g => g.status !== 'completed');
-    const completedGoals = filteredGoals.filter(g => g.status === 'completed');
-
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center py-24">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
-        );
-    }
+    const shown = filteredGoals.filter((g) => (g.status === "completed") === showCompleted);
+    const activeCount = filteredGoals.filter((g) => g.status !== "completed").length;
 
     return (
-        <div className="bg-gradient-to-br from-background via-background to-secondary/20">
-            <div className="p-4 md:p-6 max-w-6xl mx-auto">
-                <header className="mb-8">
-                    <h1 className="text-2xl md:text-3xl font-bold mb-1 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                        Goals & Impact
-                    </h1>
-                    <p className="text-muted-foreground text-sm">
-                        Track your objectives and measure your progress
-                    </p>
-                </header>
+        <Page>
+            <PageHeader
+                title="Goals"
+                subtitle="What you're working towards, and how it's going."
+                actions={
+                    <button type="button" onClick={openNew} className="inline-flex min-h-[40px] items-center gap-2 rounded-full bg-foreground px-4 text-sm font-bold text-background">
+                        <Plus className="h-4 w-4" aria-hidden="true" /> New goal
+                    </button>
+                }
+            />
 
-                {/* Stats Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                    <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium text-muted-foreground">Total Goals</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-3xl font-bold">{stats.total}</div>
-                        </CardContent>
-                    </Card>
-                    <Card className="bg-gradient-to-br from-success/5 to-success/10 border-success/20">
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium text-muted-foreground">Completed</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-3xl font-bold text-success">{stats.completed}</div>
-                        </CardContent>
-                    </Card>
-                    <Card className="bg-gradient-to-br from-info/5 to-info/10 border-info/20">
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium text-muted-foreground">On Track</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-3xl font-bold text-info">{stats.onTrack}</div>
-                        </CardContent>
-                    </Card>
-                    <Card className="bg-gradient-to-br from-warning/5 to-warning/10 border-warning/20">
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium text-muted-foreground">At Risk</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-3xl font-bold text-warning">{stats.atRisk}</div>
-                        </CardContent>
-                    </Card>
-                </div>
-
-                {/* Filters */}
-                <div className="flex flex-col sm:flex-row gap-3 mb-6">
-                    <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                        <Input
-                            placeholder="Search goals..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-10"
-                        />
-                    </div>
-                    <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as GoalStatus | "all")}>
-                        <SelectTrigger className="w-[150px]">
-                            <SelectValue placeholder="Status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Status</SelectItem>
-                            <SelectItem value="on_track">On Track</SelectItem>
-                            <SelectItem value="at_risk">At Risk</SelectItem>
-                            <SelectItem value="behind">Behind</SelectItem>
-                            <SelectItem value="completed">Completed</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <Select value={priorityFilter} onValueChange={(v) => setPriorityFilter(v as GoalPriority | "all")}>
-                        <SelectTrigger className="w-[150px]">
-                            <SelectValue placeholder="Priority" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Priority</SelectItem>
-                            <SelectItem value="critical">Critical</SelectItem>
-                            <SelectItem value="high">High</SelectItem>
-                            <SelectItem value="medium">Medium</SelectItem>
-                            <SelectItem value="low">Low</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <Button onClick={() => { setEditingGoal(null); setFormOpen(true); }} className="gap-2">
-                        <Plus className="h-4 w-4" />
-                        New Goal
-                    </Button>
-                </div>
-
-                <Tabs defaultValue="active" className="space-y-6">
-                    <TabsList>
-                        <TabsTrigger value="active">Active ({activeGoals.length})</TabsTrigger>
-                        <TabsTrigger value="completed">Completed ({completedGoals.length})</TabsTrigger>
-                    </TabsList>
-
-                    <TabsContent value="active">
-                        {activeGoals.length === 0 ? (
-                            <div className="text-center py-16 bg-card rounded-xl border-2 border-dashed">
-                                <Target className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                                <h3 className="text-lg font-semibold mb-2">No active goals</h3>
-                                <p className="text-muted-foreground mb-4">
-                                    Set your objectives and start tracking your progress
-                                </p>
-                                <Button onClick={() => setFormOpen(true)}>
-                                    <Plus className="h-4 w-4 mr-2" />
-                                    Create Goal
-                                </Button>
-                            </div>
-                        ) : (
-                            <div className="grid md:grid-cols-2 gap-4">
-                                {activeGoals.map((goal) => (
-                                    <GoalCard
-                                        key={goal.id}
-                                        goal={goal}
-                                        onEdit={handleEdit}
-                                        onDelete={handleDelete}
-                                        onUpdateProgress={handleUpdateProgress}
-                                    />
-                                ))}
-                            </div>
-                        )}
-                    </TabsContent>
-
-                    <TabsContent value="completed">
-                        {completedGoals.length === 0 ? (
-                            <div className="text-center py-16 bg-card rounded-xl border-2 border-dashed">
-                                <Target className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                                <h3 className="text-lg font-semibold mb-2">No completed goals yet</h3>
-                                <p className="text-muted-foreground">
-                                    Keep working on your active goals!
-                                </p>
-                            </div>
-                        ) : (
-                            <div className="grid md:grid-cols-2 gap-4">
-                                {completedGoals.map((goal) => (
-                                    <GoalCard
-                                        key={goal.id}
-                                        goal={goal}
-                                        onEdit={handleEdit}
-                                        onDelete={handleDelete}
-                                    />
-                                ))}
-                            </div>
-                        )}
-                    </TabsContent>
-                </Tabs>
-
-                <GoalForm
-                    open={formOpen}
-                    onOpenChange={setFormOpen}
-                    onSave={handleSave}
-                    editGoal={editingGoal}
+            {loading ? (
+                <ListSkeleton rows={3} />
+            ) : goals.length === 0 ? (
+                <EmptyState
+                    title="No goals yet"
+                    body="Set something you want to achieve this quarter. Your wins and reflections can point back to it."
+                    action={<button type="button" onClick={openNew} className="mt-1 rounded-full bg-foreground px-5 py-2.5 font-bold text-background">Set your first goal</button>}
                 />
-            </div>
-        </div>
+            ) : (
+                <>
+                    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                        <StatTile tint="blue" label="Active" value={stats.total - stats.completed} />
+                        <StatTile tint="violet" label="On track" value={stats.onTrack} />
+                        <StatTile tint="pink" label="Needs attention" value={stats.atRisk} note="At risk or behind" />
+                        <StatTile tint="ink" label="Completed" value={stats.completed} />
+                    </div>
+
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div role="group" aria-label="Show" className="flex gap-1 self-start rounded-full bg-muted p-1">
+                            {[false, true].map((completed) => (
+                                <button
+                                    key={String(completed)}
+                                    type="button"
+                                    aria-pressed={showCompleted === completed}
+                                    onClick={() => setShowCompleted(completed)}
+                                    className={cn("rounded-full px-4 py-1.5 text-sm font-semibold transition-colors",
+                                        showCompleted === completed ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
+                                >
+                                    {completed ? `Completed (${filteredGoals.length - activeCount})` : `Active (${activeCount})`}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                            <div className="relative sm:w-64">
+                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+                                <Input aria-label="Search goals" placeholder="Search goals" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="rounded-full pl-9" />
+                            </div>
+                            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as GoalStatus | "all")}>
+                                <SelectTrigger className="rounded-full sm:w-[150px]" aria-label="Status"><SelectValue placeholder="Status" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Any status</SelectItem>
+                                    <SelectItem value="on_track">On track</SelectItem>
+                                    <SelectItem value="at_risk">At risk</SelectItem>
+                                    <SelectItem value="behind">Behind</SelectItem>
+                                    <SelectItem value="completed">Completed</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <Select value={priorityFilter} onValueChange={(v) => setPriorityFilter(v as GoalPriority | "all")}>
+                                <SelectTrigger className="rounded-full sm:w-[150px]" aria-label="Priority"><SelectValue placeholder="Priority" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Any priority</SelectItem>
+                                    <SelectItem value="critical">Critical</SelectItem>
+                                    <SelectItem value="high">High</SelectItem>
+                                    <SelectItem value="medium">Medium</SelectItem>
+                                    <SelectItem value="low">Low</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+
+                    {shown.length === 0 ? (
+                        <p className="rounded-2xl border-2 border-dashed py-10 text-center text-muted-foreground">
+                            {showCompleted ? "No completed goals yet. Keep going!" : "No active goals match."}
+                        </p>
+                    ) : (
+                        <div className="grid gap-4 md:grid-cols-2">
+                            {shown.map((goal) => (
+                                <GoalCard
+                                    key={goal.id}
+                                    goal={goal}
+                                    onEdit={(g) => { setEditingGoal(g); setFormOpen(true); }}
+                                    onDelete={handleDelete}
+                                    onUpdateProgress={showCompleted ? undefined : handleUpdateProgress}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </>
+            )}
+
+            <GoalForm open={formOpen} onOpenChange={handleOpenChange} onSave={handleSave} editGoal={editingGoal} />
+            {confirm.dialog}
+        </Page>
     );
 }

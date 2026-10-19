@@ -9,94 +9,56 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { TEAMS_ENABLED } from "@/lib/features";
-import { UserCog, Shield, LogOut, CheckSquare, Target, LayoutDashboard, Settings } from "lucide-react";
+import { ChevronsUpDown, LogOut, Settings, UserCog } from "lucide-react";
 
+/** Account menu at the bottom of the sidebar. */
 export function UserMenu() {
-  const { user, userProfile, userRole, signOut } = useAuth();
+  const { user, userProfile, signOut } = useAuth();
   const navigate = useNavigate();
 
-  const getInitials = () => {
-    if (userProfile?.fullName) {
-      return userProfile.fullName
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2);
-    }
-    return user?.email?.[0]?.toUpperCase() || "U";
-  };
+  const name = userProfile?.fullName || user?.email || "You";
+  const initials = (userProfile?.fullName || user?.email || "U")
+    .split(/[\s@]/)
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" aria-label="Account menu" className="relative h-10 w-10 rounded-full group">
-          <Avatar className="border-2 border-transparent group-hover:border-primary/50 transition-all">
-            <AvatarImage src={userProfile?.avatarUrl || undefined} alt={userProfile?.fullName || "User"} />
-            <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white font-bold">
-              {getInitials()}
-            </AvatarFallback>
-          </Avatar>
-        </Button>
+      <DropdownMenuTrigger
+        aria-label="Account menu"
+        className="flex w-full min-w-0 items-center gap-3 rounded-xl p-1.5 text-left transition-colors hover:bg-muted"
+      >
+        <Avatar className="h-9 w-9">
+          <AvatarImage src={userProfile?.avatarUrl || undefined} alt="" />
+          <AvatarFallback className="bg-pastel-blue font-bold text-pastel-blue-ink">{initials}</AvatarFallback>
+        </Avatar>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-bold">{name}</span>
+          {userProfile?.team && <span className="block truncate text-xs text-muted-foreground">{userProfile.team}</span>}
+        </span>
+        <ChevronsUpDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-64 p-2" align="end" forceMount>
-        <DropdownMenuLabel className="font-normal p-2">
-          <div className="flex flex-col space-y-1">
-            <p className="text-sm font-bold leading-none">{userProfile?.fullName || "Pulse User"}</p>
-            <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
-            {userProfile?.team && (
-              <p className="text-[10px] uppercase tracking-widest font-bold text-primary mt-1">
-                {userProfile.team}
-              </p>
-            )}
-          </div>
+      <DropdownMenuContent className="w-60 p-1.5" align="start" side="top">
+        <DropdownMenuLabel className="font-normal">
+          <p className="truncate text-sm font-bold">{name}</p>
+          <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
         </DropdownMenuLabel>
-
         <DropdownMenuSeparator />
-
-        <div className="space-y-1">
-          <DropdownMenuItem onClick={() => navigate("/dashboard")} className="cursor-pointer gap-2 py-2">
-            <LayoutDashboard className="h-4 w-4 text-muted-foreground" />
-            Dashboard
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => navigate("/check-ins")} className="cursor-pointer gap-2 py-2">
-            <CheckSquare className="h-4 w-4 text-muted-foreground" />
-            My Reflections
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => navigate("/goals")} className="cursor-pointer gap-2 py-2">
-            <Target className="h-4 w-4 text-muted-foreground" />
-            My Goals
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => navigate("/onboard")} className="cursor-pointer gap-2 py-2">
-            <UserCog className="h-4 w-4 text-muted-foreground" />
-            Edit profile
-          </DropdownMenuItem>
-        </div>
-
+        <DropdownMenuItem onClick={() => navigate("/onboard")} className="cursor-pointer gap-2 py-2">
+          <UserCog className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+          Edit profile
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => navigate("/settings")} className="cursor-pointer gap-2 py-2">
+          <Settings className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+          Settings
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
-
-        <div className="space-y-1">
-          {TEAMS_ENABLED && (userRole === 'admin' || userRole === 'manager') && (
-            <DropdownMenuItem onClick={() => navigate("/manager")} className="cursor-pointer gap-2 py-2">
-              <Shield className="h-4 w-4 text-primary" />
-              Manager Dashboard
-            </DropdownMenuItem>
-          )}
-          {userRole === 'admin' && (
-            <DropdownMenuItem onClick={() => navigate("/admin")} className="cursor-pointer gap-2 py-2">
-              <Settings className="h-4 w-4 text-accent" />
-              Admin Access
-            </DropdownMenuItem>
-          )}
-        </div>
-
-        <DropdownMenuSeparator />
-
-        <DropdownMenuItem onClick={signOut} className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive gap-2 py-2">
-          <LogOut className="h-4 w-4" />
-          Sign Out
+        <DropdownMenuItem onClick={signOut} className="cursor-pointer gap-2 py-2 text-destructive focus:bg-destructive/10 focus:text-destructive">
+          <LogOut className="h-4 w-4" aria-hidden="true" />
+          Sign out
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
