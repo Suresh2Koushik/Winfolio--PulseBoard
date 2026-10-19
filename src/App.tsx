@@ -45,8 +45,8 @@ const App = () => (
               <Route path="/auth" element={<Auth />} />
 
               {/* Landing page directions under review (Winfolio rebrand) */}
-              <Route path="/preview/pastel" element={<WinfolioLanding variant="pastel" />} />
-              <Route path="/preview/forest" element={<WinfolioLanding variant="forest" />} />
+              <Route path="/preview/pastel" element={<WinfolioLanding variant="pastel" showPreviewSwitch />} />
+              <Route path="/preview/forest" element={<WinfolioLanding variant="forest" showPreviewSwitch />} />
 
               {/* Onboarding — no sidebar (first-time flow) */}
               <Route path="/onboard" element={<ProtectedRoute allowIncompleteProfile><Onboard /></ProtectedRoute>} />

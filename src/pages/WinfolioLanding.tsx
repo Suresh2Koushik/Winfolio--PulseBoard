@@ -1,11 +1,15 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, BookOpen, CalendarRange, Check, FileText, PenLine, ShieldCheck } from "lucide-react";
-import { BrandVariant, HeroIllustration, WinfolioLogo } from "@/components/brand/Brand";
+import {
+  ArrowRight, BookOpen, Briefcase, Download, FileSpreadsheet, FileText, LockKeyhole, PenLine, Sparkles, Sprout, TrendingUp,
+} from "lucide-react";
+import { BrandVariant, WinfolioLogo } from "@/components/brand/Brand";
 import { cn } from "@/lib/utils";
 
 /**
- * Class sets per visual direction. Written out in full so Tailwind can see every
- * class at build time.
+ * Winfolio marketing page. Copy is limited to what the product does today:
+ * every claim here is covered by the app's tests (see docs/LAUNCH_CHECKLIST.md).
+ *
+ * Class sets per visual direction are written out in full so Tailwind sees them.
  */
 const THEMES = {
   pastel: {
@@ -14,20 +18,20 @@ const THEMES = {
     muted: "text-[#4A4A57]",
     subtle: "text-[#5A5A66]",
     primary: "bg-[#0B0B12] text-white hover:bg-[#26263A]",
-    secondary: "bg-white text-[#0B0B12] border-[#DADAE3] hover:border-[#0B0B12]",
     link: "text-[#4A4A57] hover:text-[#0B0B12]",
+    textLink: "text-[#5B21B6] hover:text-[#3B0F86]",
     focus: "focus-visible:ring-[#5B21B6]",
     tints: [
       { bg: "bg-[#DCEBFF]", ink: "text-[#1E40AF]" },
       { bg: "bg-[#ECE6FF]", ink: "text-[#5B21B6]" },
       { bg: "bg-[#FFE1EC]", ink: "text-[#9D174D]" },
-      { bg: "bg-[#F1F1F6]", ink: "text-[#0B0B12]" },
     ],
     band: "bg-[#0B0B12] text-white",
     bandMuted: "text-[#C9C9D6]",
     bandButton: "bg-white text-[#0B0B12] hover:bg-[#ECE6FF]",
-    check: "text-[#5B21B6]",
+    accent: "text-[#5B21B6]",
     divider: "border-[#EEEEF3]",
+    sample: "bg-[#F1F1F6] text-[#4A4A57]",
   },
   forest: {
     page: "bg-[#F7F7F2] text-[#16241B]",
@@ -35,55 +39,58 @@ const THEMES = {
     muted: "text-[#45524A]",
     subtle: "text-[#55615A]",
     primary: "bg-[#24583C] text-white hover:bg-[#1C4730]",
-    secondary: "bg-white text-[#16241B] border-[#D5DAD0] hover:border-[#24583C]",
     link: "text-[#45524A] hover:text-[#16241B]",
+    textLink: "text-[#24583C] hover:text-[#163A27]",
     focus: "focus-visible:ring-[#24583C]",
     tints: [
       { bg: "bg-[#E4F0E5]", ink: "text-[#24583C]" },
       { bg: "bg-[#FBF0DC]", ink: "text-[#8A5A12]" },
       { bg: "bg-[#E8EEF7]", ink: "text-[#2F4A6E]" },
-      { bg: "bg-[#EFF1EA]", ink: "text-[#16241B]" },
     ],
     band: "bg-[#24583C] text-white",
     bandMuted: "text-[#D3E6D6]",
     bandButton: "bg-[#E9B96E] text-[#16241B] hover:bg-[#F1CB8E]",
-    check: "text-[#24583C]",
+    accent: "text-[#24583C]",
     divider: "border-[#E3E5DC]",
+    sample: "bg-[#EFF1EA] text-[#45524A]",
   },
 } as const;
 
 const PROBLEMS = [
-  "The small but meaningful wins from months ago are forgotten.",
-  "You remember tasks you finished, but not the outcome or impact.",
-  "Finding concrete examples for a performance review takes days.",
-  "Your growth in skills and responsibility goes unrecorded.",
-  "Updating a resume means rebuilding your achievements from scratch.",
+  "The meaningful wins from months ago are forgotten.",
+  "You remember the task, but not the outcome it led to.",
+  "Concrete examples for your review take days to dig up.",
+  "Growth in your skills and responsibilities goes unrecorded.",
 ];
 
-const STEPS = [
-  { title: "Capture", lead: "Record your wins", body: "Log what you did and why it mattered in under a minute, with an outcome and evidence if you have it." },
-  { title: "Reflect", lead: "See your progress", body: "Each week, note what went well, what was challenging, what you learned and what's next." },
-  { title: "Showcase", lead: "Prepare your review", body: "Pick a review period and export a summary built only from what you actually recorded." },
+const HABITS = [
+  { icon: PenLine, title: "Capture", benefit: "Nothing worth mentioning gets lost.", body: "Log a win in under a minute. Add the outcome in your own words; no forced metrics." },
+  { icon: BookOpen, title: "Reflect", benefit: "You see how you're growing.", body: "Once a week, note what went well, what was hard and what's next." },
+  { icon: FileText, title: "Showcase", benefit: "You walk in prepared.", body: "Pick a month and download a review-ready summary of what you recorded." },
 ];
 
-const FEATURES = [
-  { icon: PenLine, title: "Quick win capture", body: "Category suggestions tuned to your role, impact notes, and attachments for evidence." },
-  { icon: BookOpen, title: "Weekly reflections", body: "A short, guided look back at your week that builds a habit instead of a chore." },
-  { icon: FileText, title: "Review preparation", body: "Bring a period's wins together and download a clean, review-ready PDF." },
-  { icon: CalendarRange, title: "Your work over time", body: "See your achievements by week, by quarter and by category, and track your goals." },
+const MOMENTS = [
+  { icon: Briefcase, title: "When appraisal season arrives", body: "Your wins are already there, organised by month and by category, so you spend your time on the conversation instead of reconstructing the year." },
+  { icon: Sprout, title: "When you want to see your growth", body: "Look back across weeks and quarters at the projects, problems and lessons that show how your work has grown." },
+  { icon: TrendingUp, title: "When a new opportunity comes along", body: "Pull concrete examples for promotion discussions, career conversations and interviews from a record you already have." },
 ];
 
-const FAQ = [
-  { q: "Who can see what I log?", a: "Only you. Your journal is private to your account; you choose what to share by exporting it." },
-  { q: "Does my company need to use Winfolio?", a: "No. Winfolio is your personal record. Use it on your own and bring the output to any review or career conversation." },
-  { q: "Can I bring my existing tracker?", a: "Yes. Download the Excel template, add your rows and import them. You can export everything back out at any time." },
-  { q: "Is there a version for teams?", a: "Team features for managers are planned for a later release. Winfolio starts with you." },
+const TRUST = [
+  { icon: LockKeyhole, title: "Private to your account", body: "Access is enforced on our servers, not just hidden in the app. No other member can see your journal." },
+  { icon: Download, title: "Yours to take with you", body: "Export your wins to Excel, or download them as a PDF, whenever you want." },
+  { icon: FileSpreadsheet, title: "Bring your history", body: "Already keep a spreadsheet? Import it with our template; rows are checked before they're saved." },
 ];
 
-// Staggered entrance; motion-safe so it's skipped when the user prefers reduced motion.
+// Staggered entrance; skipped when the user prefers reduced motion.
 const reveal = "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-3 motion-safe:duration-700 motion-safe:fill-mode-both";
 
-export default function WinfolioLanding({ variant }: { variant: BrandVariant }) {
+interface Props {
+  variant: BrandVariant;
+  /** Show the bar that switches between the two directions (comparison routes only). */
+  showPreviewSwitch?: boolean;
+}
+
+export default function WinfolioLanding({ variant, showPreviewSwitch = false }: Props) {
   const t = THEMES[variant];
   const other = variant === "pastel" ? "forest" : "pastel";
   const button = cn(
@@ -91,17 +98,19 @@ export default function WinfolioLanding({ variant }: { variant: BrandVariant }) 
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-[0.98]",
     t.focus,
   );
+  const sampleLabel = cn("rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider", t.sample);
 
   return (
     <div className={cn("min-h-screen font-['Plus_Jakarta_Sans',system-ui,sans-serif]", t.page)}>
-      {/* Preview switcher: only on the comparison routes */}
-      <div className="bg-[#16161D] px-4 py-2 text-center text-sm text-white">
-        Preview: {variant === "pastel" ? "Version 1 · Pastel mix" : "Version 2 · Forest green"}
-        {" · "}
-        <Link to={`/preview/${other}`} className="font-semibold underline underline-offset-4 hover:no-underline">
-          Switch to {other === "pastel" ? "Version 1 · Pastel mix" : "Version 2 · Forest green"}
-        </Link>
-      </div>
+      {showPreviewSwitch && (
+        <div className="bg-[#16161D] px-4 py-2 text-center text-sm text-white">
+          Preview: {variant === "pastel" ? "Version 1 · Pastel mix" : "Version 2 · Forest green"}
+          {" · "}
+          <Link to={`/preview/${other}`} className="font-semibold underline underline-offset-4 hover:no-underline">
+            Switch to {other === "pastel" ? "Version 1 · Pastel mix" : "Version 2 · Forest green"}
+          </Link>
+        </div>
+      )}
 
       <header className={cn("border-b", t.surface)}>
         <nav aria-label="Main" className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6">
@@ -109,64 +118,76 @@ export default function WinfolioLanding({ variant }: { variant: BrandVariant }) 
             <WinfolioLogo variant={variant} />
           </Link>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[15px]">
-            <a href="#how" className={cn("hidden sm:inline", t.link)}>How it works</a>
-            <a href="#features" className={cn("hidden sm:inline", t.link)}>Features</a>
-            <a href="#faq" className={cn("hidden sm:inline", t.link)}>FAQ</a>
-            <Link to="/auth" className="font-bold">Sign in</Link>
-            <Link to="/auth" className={cn(button, "min-h-[44px] px-5 text-[15px]", t.primary)}>Get started free</Link>
+            <a href="#in-action" className={cn("hidden sm:inline", t.link)}>How it works</a>
+            <a href="#privacy" className={cn("hidden sm:inline", t.link)}>Privacy</a>
+            <Link to="/auth" className={cn("font-bold", t.link)}>Sign in</Link>
           </div>
         </nav>
       </header>
 
       <main>
-        {/* Hero */}
+        {/* 01 Hero: the outcome, one primary action, and what the product looks like */}
         <section className="mx-auto flex max-w-6xl flex-wrap items-center gap-12 px-4 pb-16 pt-14 sm:px-6 md:pt-20">
           <div className="flex min-w-0 flex-[1_1_440px] flex-col gap-6">
-            <div className={cn("flex flex-wrap gap-2 text-[13px] font-bold", reveal)}>
-              {STEPS.map((step, i) => (
-                <span key={step.title} className={cn("rounded-full px-3 py-1.5", t.tints[i].bg, t.tints[i].ink)}>{step.title}</span>
-              ))}
-            </div>
+            <p className={cn("text-sm font-bold uppercase tracking-[0.12em]", t.accent, reveal)}>Your personal work journal</p>
             <h1 className={cn("text-[clamp(2.4rem,5.5vw,3.75rem)] font-extrabold leading-[1.04] tracking-[-0.035em]", reveal)} style={{ animationDelay: "80ms" }}>
-              Your work deserves to be remembered.
+              Never scramble to remember your impact again.
             </h1>
             <p className={cn("max-w-xl text-lg leading-relaxed", t.muted, reveal)} style={{ animationDelay: "160ms" }}>
-              You've solved problems, shipped projects, helped teammates and made things better.
-              Winfolio helps you capture those wins as they happen, reflect on your growth, and walk
-              into every performance review with evidence of your impact.
+              Capture the work you do, the problems you solve and the difference you make.
+              When review season arrives, your achievements are already there.
             </p>
-            <div className={cn("flex flex-wrap gap-3", reveal)} style={{ animationDelay: "240ms" }}>
+            <div className={cn("flex flex-wrap items-center gap-x-6 gap-y-3", reveal)} style={{ animationDelay: "240ms" }}>
               <Link to="/auth" className={cn(button, t.primary, "hover:-translate-y-0.5 hover:shadow-lg")}>
                 Start your work journal <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
-              <a href="#how" className={cn(button, "border", t.secondary)}>See how it works</a>
+              <span className={cn("text-sm font-semibold", t.subtle)}>Every win deserves a place.</span>
             </div>
-            <p className={cn("flex items-center gap-2 text-sm", t.subtle, reveal)} style={{ animationDelay: "320ms" }}>
-              <ShieldCheck className={cn("h-4 w-4", t.check)} aria-hidden="true" />
-              Private by default. Only you can see what you log.
-            </p>
           </div>
-          <div className={cn("min-w-0 flex-[1_1_420px]", reveal)} style={{ animationDelay: "200ms" }}>
-            <HeroIllustration variant={variant} className="mx-auto h-auto w-full max-w-[520px]" />
+
+          {/* Product preview built from the real data model, clearly marked as an example */}
+          <div className={cn("flex min-w-0 flex-[1_1_420px] flex-col gap-4", reveal)} style={{ animationDelay: "200ms" }} aria-label="Example of a logged win and a review summary">
+            <div className={cn("rounded-3xl border p-6 shadow-[0_24px_48px_-28px_rgba(11,11,18,0.35)]", t.surface)}>
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <span className="text-sm font-bold">A win worth remembering</span>
+                <span className={sampleLabel}>Example</span>
+              </div>
+              <p className="text-lg font-extrabold leading-snug">Improved the customer onboarding process</p>
+              <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
+                <span className={cn("rounded-full px-2.5 py-1", t.tints[0].bg, t.tints[0].ink)}>Process Improvement</span>
+                <span className={cn("rounded-full px-2.5 py-1", t.tints[2].bg, t.tints[2].ink)}>Done</span>
+              </div>
+              <div className={cn("mt-4 rounded-2xl p-4", t.tints[1].bg)}>
+                <p className={cn("text-xs font-bold uppercase tracking-wider", t.tints[1].ink)}>Impact</p>
+                <p className="mt-1 text-[15px] leading-relaxed">New customers reached their first project faster, and setup questions to support dropped.</p>
+              </div>
+            </div>
+            <div className={cn("flex items-center gap-4 rounded-3xl p-5", t.band)}>
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/15">
+                <FileText className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <div className="min-w-0">
+                <p className="font-bold">Ready for your review</p>
+                <p className={cn("text-sm", t.bandMuted)}>Pick a month and download your recorded wins as a PDF.</p>
+              </div>
+            </div>
           </div>
         </section>
 
-        {/* Problem */}
+        {/* 02 The problem */}
         <section className={cn("border-y", t.surface)}>
           <div className="mx-auto flex max-w-6xl flex-wrap gap-10 px-4 py-16 sm:px-6 md:py-20">
             <div className="flex min-w-0 flex-[1_1_320px] flex-col gap-4">
-              <h2 className="text-3xl font-extrabold tracking-tight md:text-4xl">Great work is easy to forget.</h2>
+              <h2 className="text-3xl font-extrabold tracking-tight md:text-4xl">Good work is easy to forget.</h2>
               <p className={cn("text-lg leading-relaxed", t.muted)}>
-                Most people do good work all year, then struggle to explain their impact when appraisal season arrives.
-                Winfolio turns that stressful year-end scramble into a simple habit.
+                Notes apps and spreadsheets can store your work. They don't help you turn it into evidence
+                when you need to explain your contribution.
               </p>
             </div>
-            <ul className="flex min-w-0 flex-[1_1_420px] flex-col gap-3">
-              {PROBLEMS.map((problem) => (
-                <li key={problem} className="flex items-start gap-3 text-[16px] leading-relaxed">
-                  <span className={cn("mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full", t.tints[0].bg)}>
-                    <Check className={cn("h-3.5 w-3.5", t.tints[0].ink)} aria-hidden="true" />
-                  </span>
+            <ul className="flex min-w-0 flex-[1_1_420px] flex-col gap-4">
+              {PROBLEMS.map((problem, i) => (
+                <li key={problem} className="flex items-start gap-3 text-[17px] leading-relaxed">
+                  <span className={cn("mt-2 h-2.5 w-2.5 shrink-0 rounded-full", t.tints[i % 3].bg)} aria-hidden="true" />
                   {problem}
                 </li>
               ))}
@@ -174,37 +195,71 @@ export default function WinfolioLanding({ variant }: { variant: BrandVariant }) 
           </div>
         </section>
 
-        {/* How it works */}
-        <section id="how" className="mx-auto flex max-w-6xl scroll-mt-6 flex-col gap-10 px-4 py-16 sm:px-6 md:py-20">
+        {/* 03 See it in action: one win becoming review evidence */}
+        <section id="in-action" className="mx-auto flex max-w-6xl scroll-mt-6 flex-col gap-10 px-4 py-16 sm:px-6 md:py-20">
           <div className="flex max-w-2xl flex-col gap-3">
-            <h2 className="text-3xl font-extrabold tracking-tight md:text-4xl">Three small habits. One strong review.</h2>
-            <p className={cn("text-lg", t.muted)}>A minute here and there adds up to a record nobody can argue with.</p>
+            <h2 className="text-3xl font-extrabold tracking-tight md:text-4xl">From everyday work to review-ready evidence</h2>
+            <p className={cn("text-lg", t.muted)}>Three small habits. Here's what each one looks like.</p>
           </div>
-          <ol className="grid gap-5 md:grid-cols-3">
-            {STEPS.map((step, i) => (
-              <li
-                key={step.title}
-                className={cn("flex flex-col gap-3 rounded-3xl p-7 transition-transform duration-200 motion-safe:hover:-translate-y-1", t.tints[i].bg)}
-              >
-                <span className={cn("flex h-10 w-10 items-center justify-center rounded-full bg-white font-extrabold", t.tints[i].ink)}>{i + 1}</span>
-                <h3 className="text-xl font-extrabold">{step.title}</h3>
-                <p className={cn("text-sm font-bold uppercase tracking-wider", t.tints[i].ink)}>{step.lead}</p>
-                <p className="leading-relaxed">{step.body}</p>
+          <ol className="grid gap-5 lg:grid-cols-3">
+            {HABITS.map(({ icon: Icon, title, benefit, body }, i) => (
+              <li key={title} className={cn("flex flex-col gap-4 rounded-3xl border p-6", t.surface)}>
+                <div className="flex items-center justify-between">
+                  <span className={cn("flex h-11 w-11 items-center justify-center rounded-2xl", t.tints[i].bg)}>
+                    <Icon className={cn("h-5 w-5", t.tints[i].ink)} aria-hidden="true" />
+                  </span>
+                  <span className={cn("text-sm font-bold", t.subtle)}>Step {i + 1}</span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <h3 className="text-xl font-extrabold">{title}</h3>
+                  <p className={cn("font-semibold", t.tints[i].ink)}>{benefit}</p>
+                </div>
+                <p className={cn("leading-relaxed", t.muted)}>{body}</p>
+
+                {/* Example of what this step produces */}
+                <div className={cn("mt-auto rounded-2xl p-4 text-sm", t.tints[i].bg)}>
+                  <span className={cn(sampleLabel, "bg-white/70")}>Example</span>
+                  {i === 0 && (
+                    <div className="mt-3 flex flex-col gap-1.5">
+                      <p className="font-bold">Fixed the checkout timeout for large orders</p>
+                      <p className={cn("flex items-center gap-1.5 text-xs font-semibold", t.tints[i].ink)}>
+                        <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> Suggested category: Problem Solving
+                      </p>
+                    </div>
+                  )}
+                  {i === 1 && (
+                    <dl className="mt-3 flex flex-col gap-2">
+                      <div><dt className="text-xs font-bold uppercase tracking-wider opacity-80">What went well</dt><dd className="font-semibold">Shipped the checkout fix ahead of the sale.</dd></div>
+                      <div><dt className="text-xs font-bold uppercase tracking-wider opacity-80">What's next</dt><dd className="font-semibold">Add monitoring so it can't regress.</dd></div>
+                    </dl>
+                  )}
+                  {i === 2 && (
+                    <div className="mt-3 flex flex-col gap-1.5">
+                      <p className="font-bold">October · 9 wins</p>
+                      <ul className="flex flex-col gap-1">
+                        <li className="flex justify-between gap-3"><span>Fixed the checkout timeout</span><span className="shrink-0 font-bold">Oct 8</span></li>
+                        <li className="flex justify-between gap-3"><span>Launched partner onboarding</span><span className="shrink-0 font-bold">Oct 15</span></li>
+                        <li className="flex justify-between gap-3"><span>Mentored a new teammate</span><span className="shrink-0 font-bold">Oct 22</span></li>
+                      </ul>
+                    </div>
+                  )}
+                </div>
               </li>
             ))}
           </ol>
+          <p className={cn("text-sm", t.subtle)}>Examples use sample data. Your summary contains only what you've recorded.</p>
         </section>
 
-        {/* Features */}
-        <section id="features" className={cn("scroll-mt-6 border-y", t.surface)}>
+        {/* 04 Moments that matter (replaces a generic FAQ) */}
+        <section className={cn("border-y", t.surface)}>
           <div className="mx-auto flex max-w-6xl flex-col gap-10 px-4 py-16 sm:px-6 md:py-20">
-            <h2 className="text-3xl font-extrabold tracking-tight md:text-4xl">Everything you need, nothing you don't</h2>
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {FEATURES.map(({ icon: Icon, title, body }, i) => (
-                <div key={title} className={cn("flex flex-col gap-3 rounded-2xl border p-6 transition-shadow duration-200 hover:shadow-md", t.surface)}>
-                  <span className={cn("flex h-11 w-11 items-center justify-center rounded-xl", t.tints[i % 3].bg)}>
-                    <Icon className={cn("h-5 w-5", t.tints[i % 3].ink)} aria-hidden="true" />
-                  </span>
+            <h2 className="max-w-3xl text-3xl font-extrabold tracking-tight md:text-4xl">
+              Built for the moments your work needs to speak for itself
+            </h2>
+            <div className="grid gap-8 md:grid-cols-3">
+              {MOMENTS.map(({ icon: Icon, title, body }, i) => (
+                <div key={title} className="flex flex-col gap-3">
+                  <Icon className={cn("h-6 w-6", t.tints[i].ink)} aria-hidden="true" />
                   <h3 className="text-lg font-extrabold">{title}</h3>
                   <p className={cn("leading-relaxed", t.muted)}>{body}</p>
                 </div>
@@ -213,37 +268,32 @@ export default function WinfolioLanding({ variant }: { variant: BrandVariant }) 
           </div>
         </section>
 
-        {/* Promise */}
-        <section className="mx-auto max-w-4xl px-4 py-16 text-center sm:px-6 md:py-20">
-          <p className="text-[clamp(1.6rem,3.5vw,2.4rem)] font-extrabold leading-tight tracking-tight">
-            “You do the work. Winfolio helps you remember its value.”
-          </p>
-        </section>
-
-        {/* FAQ */}
-        <section id="faq" className={cn("scroll-mt-6 border-t", t.surface)}>
-          <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-16 sm:px-6 md:py-20">
-            <h2 className="text-3xl font-extrabold tracking-tight md:text-4xl">Questions</h2>
-            <dl className="flex flex-col">
-              {FAQ.map(({ q, a }) => (
-                <div key={q} className={cn("flex flex-col gap-2 border-b py-5", t.divider)}>
-                  <dt className="text-[17px] font-extrabold">{q}</dt>
-                  <dd className={cn("leading-relaxed", t.muted)}>{a}</dd>
-                </div>
-              ))}
-            </dl>
+        {/* 05 Trust and privacy: only what the implementation guarantees */}
+        <section id="privacy" className="mx-auto flex max-w-6xl scroll-mt-6 flex-col gap-10 px-4 py-16 sm:px-6 md:py-20">
+          <div className="flex max-w-2xl flex-col gap-3">
+            <h2 className="text-3xl font-extrabold tracking-tight md:text-4xl">Your record, under your control</h2>
+            <p className={cn("text-lg", t.muted)}>What you log about your work can be sensitive. Here's how Winfolio treats it.</p>
+          </div>
+          <div className="grid gap-5 md:grid-cols-3">
+            {TRUST.map(({ icon: Icon, title, body }) => (
+              <div key={title} className={cn("flex flex-col gap-3 rounded-3xl border p-6", t.surface)}>
+                <Icon className={cn("h-6 w-6", t.accent)} aria-hidden="true" />
+                <h3 className="text-lg font-extrabold">{title}</h3>
+                <p className={cn("leading-relaxed", t.muted)}>{body}</p>
+              </div>
+            ))}
           </div>
         </section>
 
-        {/* Final call to action */}
-        <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 md:py-20">
+        {/* 06 Final call to action */}
+        <section className="mx-auto max-w-6xl px-4 pb-20 sm:px-6">
           <div className={cn("flex flex-wrap items-center justify-between gap-6 rounded-[28px] px-8 py-12 md:px-12", t.band)}>
             <div className="flex max-w-xl flex-col gap-3">
-              <h2 className="text-3xl font-extrabold tracking-tight">Every win deserves a place.</h2>
-              <p className={t.bandMuted}>Start your work journal today. Setup takes two minutes.</p>
+              <h2 className="text-3xl font-extrabold tracking-tight">Start with today's win.</h2>
+              <p className={t.bandMuted}>By your next review, you'll be glad you did.</p>
             </div>
             <Link to="/auth" className={cn(button, t.bandButton, "hover:-translate-y-0.5")}>
-              Create your free account
+              Start your work journal
             </Link>
           </div>
         </section>
@@ -251,7 +301,7 @@ export default function WinfolioLanding({ variant }: { variant: BrandVariant }) 
 
       <footer className={cn("border-t", t.surface)}>
         <div className={cn("mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-8 text-sm sm:px-6", t.subtle)}>
-          <WinfolioLogo variant={variant} className="text-[#0B0B12]" />
+          <WinfolioLogo variant={variant} className="text-current" />
           <span>© {new Date().getFullYear()} Winfolio · Every win deserves a place.</span>
         </div>
       </footer>
