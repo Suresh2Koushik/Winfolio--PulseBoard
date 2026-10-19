@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Activity, STATUS_OPTIONS, ActivityCategory, ACTIVITY_CATEGORY_OPTIONS } from "@/types";
+import { Activity, STATUS_OPTIONS, ActivityCategory } from "@/types";
+import { DEFAULT_CATEGORIES } from "@/lib/categories";
 import { useUserData } from "@/hooks/useUserData";
 import { useAuth } from "@/contexts/AuthContext";
 import { storage } from "@/lib/firebase";
@@ -99,15 +100,21 @@ export function ActivityForm({ open, onOpenChange, onSave, editActivity }: Activ
   }, [editActivity, open]);
 
   useEffect(() => {
-    if ((formData.title || formData.description) && categories.length > 0) {
-      const suggested = suggestCategory(formData.title, formData.description, categories) as ActivityCategory;
-      if (suggested !== formData.category) {
-        setSuggestedCategory(suggested);
-      } else {
-        setSuggestedCategory(null);
-      }
-    }
+    const pool = categories.length > 0 ? categories : DEFAULT_CATEGORIES;
+    const suggested = formData.title || formData.description
+      ? suggestCategory(formData.title, formData.description, pool)
+      : null;
+    setSuggestedCategory(suggested && suggested !== formData.category ? suggested : null);
   }, [formData.title, formData.description, formData.category, categories]);
+
+  // Keep the activity's current category selectable even if it was renamed or deleted.
+  const categoryOptions = (() => {
+    const list = (categories.length > 0 ? categories : DEFAULT_CATEGORIES).map((c) => ({ name: c.name, emoji: c.emoji }));
+    if (formData.category && !list.some((c) => c.name === formData.category)) {
+      list.push({ name: formData.category, emoji: "🔹" });
+    }
+    return list;
+  })();
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -273,10 +280,8 @@ export function ActivityForm({ open, onOpenChange, onSave, editActivity }: Activ
                 <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value as ActivityCategory })}>
                   <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {categories.length > 0 ? categories.map((cat) => (
+                    {categoryOptions.map((cat) => (
                       <SelectItem key={cat.name} value={cat.name}>{cat.emoji} {cat.name}</SelectItem>
-                    )) : ACTIVITY_CATEGORY_OPTIONS.map(cat => (
-                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

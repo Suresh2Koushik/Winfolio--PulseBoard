@@ -10,7 +10,8 @@ import { db } from "@/lib/firebase";
 import { doc, updateDoc, serverTimestamp, collection, getDocs, query, where, addDoc } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { DEFAULT_CATEGORIES, TEAM_OPTIONS } from "@/types";
+import { JobFunction } from "@/types";
+import { categoriesForRole, JOB_FUNCTIONS, TEAM_OPTIONS } from "@/lib/categories";
 import { Plus, Trash2, Sparkles, Target, Users, CheckCircle2, ChevronRight, Loader2, Rocket } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +24,9 @@ export default function Onboard() {
   // Profile state
   const [team, setTeam] = useState(userProfile?.team || "");
   const [managerId, setManagerId] = useState(userProfile?.managerId || "");
+  const [jobFunction, setJobFunction] = useState<JobFunction>(userProfile?.jobFunction || "general");
+  const recommended = categoriesForRole(jobFunction);
+  const jobFunctionLabel = JOB_FUNCTIONS.find(j => j.id === jobFunction)?.label ?? "General";
   const [managers, setManagers] = useState<{ id: string; name: string }[]>([]);
 
   // Categories & Teams state
@@ -61,6 +65,7 @@ export default function Onboard() {
 
       await updateDoc(doc(db, "users", user.uid), {
         team: teamName.slice(0, 100),
+        jobFunction,
         managerId: selectedManager ? selectedManager.id : null,
         managerName: selectedManager ? selectedManager.name : null,
         updatedAt: serverTimestamp(),
@@ -87,7 +92,7 @@ export default function Onboard() {
       const haveCategory = new Set(existingCategories.docs.map(d => d.data().name));
       const haveTeam = new Set(existingTeams.docs.map(d => d.data().name));
 
-      const categoryPromises = DEFAULT_CATEGORIES
+      const categoryPromises = recommended
         .filter(cat => !haveCategory.has(cat.name))
         .map(cat =>
           addDoc(collection(db, "userCategories"), {
@@ -183,9 +188,24 @@ export default function Onboard() {
               </div>
 
               <div className="space-y-2">
+                <Label>What's your role?</Label>
+                <Select value={jobFunction} onValueChange={(v) => setJobFunction(v as JobFunction)}>
+                  <SelectTrigger className="h-12" aria-label="Your role">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {JOB_FUNCTIONS.map(j => (
+                      <SelectItem key={j.id} value={j.id}>{j.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">We use this to suggest the right category as you log work.</p>
+              </div>
+
+              <div className="space-y-2">
                 <Label>Your Manager (Optional)</Label>
                 <Select value={managerId} onValueChange={setManagerId}>
-                  <SelectTrigger className="h-12">
+                  <SelectTrigger className="h-12" aria-label="Your manager">
                     <SelectValue placeholder="Select your manager" />
                   </SelectTrigger>
                   <SelectContent>
@@ -211,17 +231,19 @@ export default function Onboard() {
         {step === 2 && (
           <Card className="border-0 shadow-2xl glass-dark">
             <CardHeader>
-              <CardTitle>Organization Setup</CardTitle>
-              <CardDescription>We've pre-loaded some defaults for your categories and teams.</CardDescription>
+              <CardTitle>Your Categories & Teams</CardTitle>
+              <CardDescription>
+                These match the sections of a typical performance review. You can rename, add or remove them anytime in Dashboard → Settings.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
                 <div className="flex items-center gap-2 text-sm font-semibold text-primary">
                   <CheckCircle2 className="h-4 w-4" />
-                  Default Categories Ready
+                  Categories tuned for {jobFunctionLabel}
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  {DEFAULT_CATEGORIES.slice(0, 4).map(cat => (
+                  {recommended.map(cat => (
                     <div key={cat.name} className="p-2 rounded-lg bg-muted/50 border text-xs flex items-center gap-2">
                       {cat.emoji} {cat.name}
                     </div>
@@ -230,7 +252,7 @@ export default function Onboard() {
               </div>
 
               <div className="space-y-4 pt-2">
-                <Label>Cross-functional Teams</Label>
+                <Label>Teams you work with</Label>
                 <div className="flex flex-wrap gap-2 mb-3">
                   {TEAM_OPTIONS.map(name => (
                     <Badge key={name} variant="secondary" className="px-3 py-1">{name}</Badge>

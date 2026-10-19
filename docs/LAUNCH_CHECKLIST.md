@@ -85,8 +85,8 @@ These points come from the old code's behaviour. I couldn't see the live databas
 | Backups | Firestore point-in-time recovery requires the Blaze plan; not configured. |
 | Dependency audit | 12 advisories remain (no critical). They are in Firestore's Node-only gRPC transport and Tailwind's build tooling, neither of which ships to browsers. |
 
-## 7. Branding decisions pending
+## 7. Branding
 
-- Landing page footer credits an individual and their employer (`src/pages/Landing.tsx`).
-- The default categories include the company-specific "Roofing Core Vertical" (`src/types/index.ts`).
-- The favicon is the template default (`public/favicon.ico`).
+- Landing page: personal/employer credit replaced with a neutral "© PulseBoard" footer; hero copy made general.
+- Default categories: replaced with 10 general, review-aligned categories (Delivery & Execution, Customer & Business Impact, Problem Solving, Process Improvement, Collaboration, Leadership & Mentoring, Learning & Growth, Knowledge Sharing, Culture & Community, Other), with keyword suggestions tuned to the role chosen at onboarding. Existing users keep their categories and can use **Settings → Apply recommended categories**.
+- Still open: product name/trademark check, logo and colours, custom domain, favicon, Privacy Policy and Terms pages.

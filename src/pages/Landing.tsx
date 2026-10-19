@@ -34,8 +34,8 @@ const Landing = () => {
           </h1>
           
           <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-            A personal work tracker built by a Product Manager, for builders who think like one.
-            Log your work, uncover patterns, and generate performance summaries — all in one place.
+            Capture your wins as they happen, keep your manager in the loop,
+            and turn a year of work into a review-ready story — in minutes.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
@@ -69,7 +69,7 @@ const Landing = () => {
             
             <p className="text-lg text-primary font-medium">
               Spreadsheets help, but they're passive. You don't need another tracker — 
-              you need a system that thinks like a PM.
+              you need a system that remembers for you.
             </p>
           </div>
         </div>
@@ -116,10 +116,10 @@ const Landing = () => {
 
       {/* Footer */}
       <footer className="container mx-auto px-4 py-12 border-t border-border/50">
-        <div className="max-w-4xl mx-auto text-center space-y-4">
-          <p className="text-lg font-medium">Built by Dilith Dinesh</p>
-          <p className="text-muted-foreground">
-            Customer Product Manager @ Zuper | AI-First Product Builder
+        <div className="max-w-4xl mx-auto text-center space-y-2">
+          <p className="font-medium">PulseBoard</p>
+          <p className="text-sm text-muted-foreground">
+            © {new Date().getFullYear()} PulseBoard. All rights reserved.
           </p>
         </div>
       </footer>

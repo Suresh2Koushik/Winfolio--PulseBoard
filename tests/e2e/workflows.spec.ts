@@ -30,7 +30,7 @@ async function newPage(browser: Browser, label: string): Promise<Page> {
   return page;
 }
 
-async function signUp(page: Page, person: { email: string; name: string }, team: string) {
+async function signUp(page: Page, person: { email: string; name: string }, team: string, role?: string) {
   await page.goto("/auth");
   await page.getByRole("tab", { name: "Sign Up" }).click();
   await page.locator("#signup-name").fill(person.name);
@@ -41,7 +41,11 @@ async function signUp(page: Page, person: { email: string; name: string }, team:
   // New accounts are sent to onboarding.
   await expect(page).toHaveURL(/\/onboard$/);
   await page.locator("#team").fill(team);
+  if (role) await chooseOption(page, page.getByRole("combobox", { name: "Your role" }), role);
   await page.getByRole("button", { name: /Next Step/ }).click();
+  // The recommended set (not company-specific defaults) is offered.
+  await expect(page.getByText("Customer & Business Impact")).toBeVisible();
+  await expect(page.getByText("Roofing Core Vertical")).toHaveCount(0);
   await page.getByRole("button", { name: /Complete Setup/ }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
   await expect(page.getByRole("heading", { name: new RegExp(`Welcome back, ${person.name.split(" ")[0]}`) })).toBeVisible();
@@ -79,7 +83,7 @@ test.describe.serial("PulseBoard core workflows", () => {
   });
 
   test("employee signs up, onboards, and cannot reach manager/admin pages", async () => {
-    await signUp(alice, ALICE, "Engineering");
+    await signUp(alice, ALICE, "Engineering", "Engineering");
     await signUp(bob, BOB, "Engineering");
 
     await alice.goto("/admin");
@@ -92,6 +96,9 @@ test.describe.serial("PulseBoard core workflows", () => {
     await alice.goto("/dashboard");
     await alice.getByRole("button", { name: "Add Work Activity" }).click();
     const dialog = alice.getByRole("dialog");
+    // Role-tuned keyword suggestion ("hotfix" is an engineering keyword).
+    await dialog.locator("#title").fill("Hotfix for login outage");
+    await expect(dialog.getByRole("button", { name: /Suggested: Problem Solving/ })).toBeVisible();
     await dialog.locator("#title").fill("Shipped onboarding revamp");
     await dialog.getByRole("button", { name: /Capture Achievement/ }).click();
     await expect(alice.getByText("Activity added successfully")).toBeVisible();
@@ -191,7 +198,7 @@ test.describe.serial("PulseBoard core workflows", () => {
 
   test("employee picks Bob as manager from Edit profile", async () => {
     await alice.goto("/onboard");
-    await chooseOption(alice, alice.getByRole("combobox"), BOB.name);
+    await chooseOption(alice, alice.getByRole("combobox", { name: "Your manager" }), BOB.name);
     await alice.getByRole("button", { name: /Next Step/ }).click();
     await alice.getByRole("button", { name: /Complete Setup/ }).click();
     await expect(alice).toHaveURL(/\/dashboard$/);

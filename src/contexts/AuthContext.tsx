@@ -61,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 team: data.team || undefined,
                 managerId: data.managerId || undefined,
                 managerName: data.managerName || undefined,
+                jobFunction: data.jobFunction || undefined,
                 createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
                 updatedAt: data.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString(),
               });

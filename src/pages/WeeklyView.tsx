@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { Activity, CategoryType, ActivityStatus } from "@/types";
+import { Activity, ActivityStatus } from "@/types";
+import { useUserData } from "@/hooks/useUserData";
 import { ActivityCard } from "@/components/ActivityCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { format, startOfWeek, addDays, parseISO, setWeek } from "date-fns";
 import { getWeekNumber } from "@/utils/categorization";
-import { CATEGORIES } from "@/types";
 
 interface WeeklyViewProps {
   activities: Activity[];
@@ -19,7 +19,8 @@ export function WeeklyView({ activities, onEdit, onDelete }: WeeklyViewProps) {
     const now = new Date();
     return `${now.getFullYear()}-W${String(getWeekNumber(now)).padStart(2, "0")}`;
   });
-  const [filterCategory, setFilterCategory] = useState<CategoryType | "All">("All");
+  const { categories } = useUserData();
+  const [filterCategory, setFilterCategory] = useState<string>("All");
   const [filterStatus, setFilterStatus] = useState<ActivityStatus | "All">("All");
 
   const weeks = Array.from({ length: 53 }, (_, i) => {
@@ -65,13 +66,13 @@ export function WeeklyView({ activities, onEdit, onDelete }: WeeklyViewProps) {
           </SelectContent>
         </Select>
 
-        <Select value={filterCategory} onValueChange={(value) => setFilterCategory(value as CategoryType | "All")}>
+        <Select value={filterCategory} onValueChange={setFilterCategory}>
           <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="Filter by category" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="All">All Categories</SelectItem>
-            {CATEGORIES.map((cat) => (
+            {categories.map((cat) => (
               <SelectItem key={cat.name} value={cat.name}>
                 {cat.emoji} {cat.name}
               </SelectItem>

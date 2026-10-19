@@ -19,19 +19,12 @@ export type ChangeType = 'feature' | 'improvement' | 'bugfix' | 'breaking';
 // Risk Level
 export type RiskLevel = 'low' | 'medium' | 'high';
 
-// Activity Categories (extended)
-export type ActivityCategory =
-  | "Delivery"
-  | "Support"
-  | "Meetings"
-  | "Documentation"
-  | "Learning"
-  | "Roofing Core Vertical"
-  | "Product & Features"
-  | "Partnerships & Expansion"
-  | "Knowledge & Enablement"
-  | "Cross-functional Collaboration"
-  | "Other";
+// Category names are user-defined (users can add, rename and delete them),
+// so any string is valid. Defaults live in src/lib/categories.ts.
+export type ActivityCategory = string;
+
+// Job function chosen at onboarding; tunes category keyword suggestions.
+export type JobFunction = 'engineering' | 'product' | 'sales_cs' | 'marketing' | 'operations' | 'general';
 
 // User Profile (enhanced)
 export interface UserProfile {
@@ -43,6 +36,7 @@ export interface UserProfile {
   team?: string;
   managerId?: string;
   managerName?: string;
+  jobFunction?: JobFunction;
   createdAt: string;
   updatedAt: string;
 }
@@ -229,111 +223,10 @@ export interface CategoryInfo {
   keywords: string[];
 }
 
-// Default categories
-export const DEFAULT_CATEGORIES: CategoryInfo[] = [
-  {
-    name: "Delivery",
-    emoji: "🚀",
-    color: "hsl(145 65% 50%)",
-    keywords: ["ship", "deploy", "release", "launch", "complete"],
-  },
-  {
-    name: "Support",
-    emoji: "🛟",
-    color: "hsl(210 80% 58%)",
-    keywords: ["help", "support", "assist", "fix", "resolve"],
-  },
-  {
-    name: "Meetings",
-    emoji: "📅",
-    color: "hsl(35 85% 55%)",
-    keywords: ["meeting", "call", "sync", "standup", "review"],
-  },
-  {
-    name: "Documentation",
-    emoji: "📝",
-    color: "hsl(265 75% 60%)",
-    keywords: ["doc", "write", "document", "guide", "readme"],
-  },
-  {
-    name: "Learning",
-    emoji: "📚",
-    color: "hsl(340 75% 60%)",
-    keywords: ["learn", "study", "course", "training", "research"],
-  },
-  {
-    name: "Roofing Core Vertical",
-    emoji: "🧩",
-    color: "hsl(265 75% 60%)",
-    keywords: ["golden account", "roofing demo", "vertical", "roofing account", "demo environment", "roofing"],
-  },
-  {
-    name: "Product & Features",
-    emoji: "⚙️",
-    color: "hsl(210 80% 58%)",
-    keywords: ["checklist", "builder", "feature", "beta", "product", "QA", "testing", "development", "bug", "release"],
-  },
-  {
-    name: "Partnerships & Expansion",
-    emoji: "📈",
-    color: "hsl(35 85% 55%)",
-    keywords: ["partner", "TSSG", "expansion", "widget", "integration", "external", "partnership"],
-  },
-  {
-    name: "Knowledge & Enablement",
-    emoji: "🧠",
-    color: "hsl(145 60% 50%)",
-    keywords: ["training", "documentation", "enablement", "knowledge", "onboarding", "teach", "guide", "learn"],
-  },
-  {
-    name: "Cross-functional Collaboration",
-    emoji: "🤝",
-    color: "hsl(340 75% 60%)",
-    keywords: ["meeting", "alignment", "sync", "collaborate", "workshop", "discussion", "planning"],
-  },
-  {
-    name: "Other",
-    emoji: "🔹",
-    color: "hsl(220 15% 60%)",
-    keywords: [],
-  },
-];
-
-export const TEAM_OPTIONS = [
-  "Sales",
-  "CX",
-  "Marketing",
-  "RevOps",
-  "Product",
-  "Implementation",
-  "Engineering",
-  "Design",
-];
+// Default categories, job functions and team options live in src/lib/categories.ts.
 
 export const STATUS_OPTIONS: ActivityStatus[] = ["Not Started", "In Progress", "Done", "Blocked"];
 
 export const GOAL_STATUS_OPTIONS: GoalStatus[] = ['on_track', 'at_risk', 'completed', 'behind'];
 
 export const GOAL_PRIORITY_OPTIONS: GoalPriority[] = ['low', 'medium', 'high', 'critical'];
-
-// Alias so files can import { CATEGORIES } from "@/types"
-export const CATEGORIES = DEFAULT_CATEGORIES;
-
-// Alias for backwards compatibility
-export type CategoryType = ActivityCategory;
-
-// ActivityCategory string array for select dropdowns
-export const ACTIVITY_CATEGORY_OPTIONS: ActivityCategory[] = [
-  "Delivery",
-  "Support",
-  "Meetings",
-  "Documentation",
-  "Learning",
-  "Roofing Core Vertical",
-  "Product & Features",
-  "Partnerships & Expansion",
-  "Knowledge & Enablement",
-  "Cross-functional Collaboration",
-  "Other",
-];
-

@@ -76,7 +76,7 @@ service cloud.firestore {
 
     function isStringList(v, maxItems, maxLen) {
       return v is list && v.size() <= maxItems
-        && (v.size() == 0 || v[0] is string);
+        && (v.size() == 0 || (v[0] is string && v[0].size() <= maxLen));
     }
 
     // yyyy-MM-dd
@@ -98,9 +98,11 @@ service cloud.firestore {
       function validProfileShape(data) {
         return data.keys().hasOnly([
             'email', 'fullName', 'avatarUrl', 'role', 'team',
-            'managerId', 'managerName', 'createdAt', 'updatedAt'])
+            'managerId', 'managerName', 'jobFunction', 'createdAt', 'updatedAt'])
           && isString(data.fullName, 100)
           && data.role in ['employee', 'manager', 'admin']
+          && (!('jobFunction' in data) || data.jobFunction in
+              ['engineering', 'product', 'sales_cs', 'marketing', 'operations', 'general'])
           && isOptString(data, 'team', 100)
           && isOptString(data, 'avatarUrl', 2048)
           && isOptString(data, 'managerName', 100)

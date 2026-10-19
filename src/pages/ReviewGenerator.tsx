@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { Activity, DEFAULT_CATEGORIES as CATEGORIES } from "@/types";
+import { Activity } from "@/types";
+import { categoryDisplay } from "@/lib/categories";
+import { useUserData } from "@/hooks/useUserData";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -25,6 +27,7 @@ interface ReviewGeneratorProps {
 export function ReviewGenerator({ activities }: ReviewGeneratorProps) {
   const [selectedMonth, setSelectedMonth] = useState(() => format(new Date(), "yyyy-MM"));
   const [isGenerating, setIsGenerating] = useState(false);
+  const { categories } = useUserData();
 
   // Step back from the 1st of this month so the 29th-31st can't skip or repeat months.
   const months = Array.from({ length: 12 }, (_, i) => {
@@ -150,7 +153,7 @@ export function ReviewGenerator({ activities }: ReviewGeneratorProps) {
                   <div key={activity.id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-lg">{CATEGORIES.find((c) => c.name === activity.category)?.emoji || '🔹'}</span>
+                        <span className="text-lg">{categoryDisplay(activity.category, categories).emoji}</span>
                         <h5 className="font-bold truncate">{activity.title}</h5>
                       </div>
                       <p className="text-sm text-muted-foreground line-clamp-1">{activity.description}</p>

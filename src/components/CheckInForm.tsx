@@ -11,7 +11,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { CalendarIcon, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { CheckIn, Goal, DEFAULT_CATEGORIES, ActivityCategory } from "@/types";
+import { CheckIn, Goal, ActivityCategory } from "@/types";
+import { DEFAULT_CATEGORIES } from "@/lib/categories";
+import { useUserData } from "@/hooks/useUserData";
 import { useGoals } from "@/hooks/useGoals";
 
 interface CheckInFormProps {
@@ -23,6 +25,8 @@ interface CheckInFormProps {
 
 export function CheckInForm({ open, onOpenChange, onSave, editCheckIn }: CheckInFormProps) {
     const { goals } = useGoals();
+    const { categories } = useUserData();
+    const categoryChoices = categories.length > 0 ? categories : DEFAULT_CATEGORIES;
     const [loading, setLoading] = useState(false);
     const [weekStart, setWeekStart] = useState<Date>(startOfWeek(new Date(), { weekStartsOn: 1 }));
     const [workSummary, setWorkSummary] = useState("");
@@ -181,7 +185,7 @@ export function CheckInForm({ open, onOpenChange, onSave, editCheckIn }: CheckIn
                     <div className="space-y-2">
                         <Label>Work Categories</Label>
                         <div className="flex flex-wrap gap-2">
-                            {DEFAULT_CATEGORIES.slice(0, 6).map((cat) => (
+                            {categoryChoices.map((cat) => (
                                 <Badge
                                     key={cat.name}
                                     variant={selectedCategories.includes(cat.name) ? "default" : "outline"}

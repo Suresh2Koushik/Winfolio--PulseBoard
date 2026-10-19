@@ -4,7 +4,7 @@ import { ref, getDownloadURL } from "firebase/storage";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CATEGORIES } from "@/types";
+import { categoryDisplay } from "@/lib/categories";
 import { useUserData } from "@/hooks/useUserData";
 import { Pencil, Trash2, Calendar, Award, FileText, Download, Users } from "lucide-react";
 import { format, parseISO } from "date-fns";
@@ -21,9 +21,7 @@ export function ActivityCard({ activity, onEdit, onDelete }: ActivityCardProps) 
   const { categories } = useUserData();
 
   // Find category info safely
-  const categoryInfo = categories.find(c => c.name === activity.category) ||
-    CATEGORIES.find(c => c.name === activity.category) ||
-    { name: activity.category, emoji: '🔹', color: 'hsl(220 15% 60%)' };
+  const categoryInfo = categoryDisplay(activity.category, categories);
 
   const handleDownloadAttachment = async () => {
     if (!activity.attachmentUrl) return;

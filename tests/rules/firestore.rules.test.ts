@@ -186,6 +186,11 @@ describe("users: profile edits", () => {
     await assertSucceeds(updateDoc(doc(asUser(EMP), "users", EMP), { team: "Product" }));
   });
 
+  it("can set a known job function but not an arbitrary value", async () => {
+    await assertSucceeds(updateDoc(doc(asUser(EMP), "users", EMP), { jobFunction: "engineering" }));
+    await assertFails(updateDoc(doc(asUser(EMP), "users", EMP), { jobFunction: "ceo" }));
+  });
+
   it("can pick a manager from the directory", async () => {
     await assertSucceeds(updateDoc(doc(asUser(OTHER), "users", OTHER), { managerId: MGR, managerName: MGR }));
   });

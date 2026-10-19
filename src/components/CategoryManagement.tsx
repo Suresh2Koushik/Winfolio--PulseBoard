@@ -1,5 +1,9 @@
 import { useState } from "react";
+import { collection, doc, serverTimestamp, writeBatch } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { useAuth } from "@/contexts/AuthContext";
 import { useUserData } from "@/hooks/useUserData";
+import { categoriesForRole, JOB_FUNCTIONS } from "@/lib/categories";
 import { UserCategory } from "@/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit2, Trash2, X, Sparkles, Palette } from "lucide-react";
+import { Plus, Edit2, Trash2, X, Sparkles, Palette, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 
 const EMPTY_FORM = {
@@ -18,6 +22,7 @@ const EMPTY_FORM = {
 };
 
 export function CategoryManagement() {
+  const { user, userProfile } = useAuth();
   const { categories, addCategory, updateCategory, deleteCategory } = useUserData();
   const [isOpen, setIsOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<UserCategory | null>(null);
@@ -74,6 +79,57 @@ export function CategoryManagement() {
     resetForm();
   };
 
+  /**
+   * Adds any recommended category the user doesn't have and merges the recommended
+   * keywords into ones they do. Never deletes or renames anything.
+   */
+  const applyRecommended = async () => {
+    if (!user) return;
+    const recommended = categoriesForRole(userProfile?.jobFunction);
+    const byName = new Map(categories.map((c) => [c.name.toLowerCase(), c]));
+    const batch = writeBatch(db);
+    let added = 0;
+    let updated = 0;
+
+    for (const rec of recommended) {
+      const existing = byName.get(rec.name.toLowerCase());
+      if (!existing) {
+        batch.set(doc(collection(db, "userCategories")), {
+          userId: user.uid,
+          name: rec.name,
+          emoji: rec.emoji,
+          color: rec.color,
+          keywords: rec.keywords,
+          createdAt: serverTimestamp(),
+        });
+        added++;
+      } else {
+        const merged = Array.from(new Set([...existing.keywords, ...rec.keywords]));
+        if (merged.length !== existing.keywords.length) {
+          batch.update(doc(db, "userCategories", existing.id), { keywords: merged, updatedAt: serverTimestamp() });
+          updated++;
+        }
+      }
+    }
+
+    if (added + updated === 0) {
+      toast.info("You already have all the recommended categories");
+      return;
+    }
+    setLoading(true);
+    try {
+      await batch.commit();
+      toast.success(`Added ${added} categories${updated ? `, refreshed keywords on ${updated}` : ""}`);
+    } catch (error) {
+      console.error("Applying recommended categories failed:", error);
+      toast.error("Failed to apply recommended categories");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const roleLabel = JOB_FUNCTIONS.find((j) => j.id === userProfile?.jobFunction)?.label;
+
   const addKeyword = () => {
     const keyword = keywordInput.trim();
     if (keyword && !formData.keywords.includes(keyword)) {
@@ -96,16 +152,28 @@ export function CategoryManagement() {
           </h3>
           <p className="text-sm text-muted-foreground">Customize activity categories and the keywords used to suggest them</p>
         </div>
-        <Button
-          onClick={() => {
-            resetForm();
-            setIsOpen(true);
-          }}
-          className="gap-2 shadow-lg shadow-primary/20"
-        >
-          <Plus className="h-4 w-4" />
-          New Category
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            onClick={applyRecommended}
+            disabled={loading}
+            className="gap-2"
+            title={roleLabel ? `Recommended set tuned for ${roleLabel}` : "Recommended set"}
+          >
+            <Wand2 className="h-4 w-4" />
+            Apply recommended categories
+          </Button>
+          <Button
+            onClick={() => {
+              resetForm();
+              setIsOpen(true);
+            }}
+            className="gap-2 shadow-lg shadow-primary/20"
+          >
+            <Plus className="h-4 w-4" />
+            New Category
+          </Button>
+        </div>
       </div>
 
       {categories.length === 0 && (

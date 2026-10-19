@@ -9,16 +9,35 @@ export function getQuarter(date: Date): string {
   return `Q${quarter}`;
 }
 
-export function categorizeActivity(title: string, description: string, categories: { name: string; keywords: string[] }[]): string {
-  const text = `${title} ${description}`.toLowerCase();
+const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * Picks the category whose keywords best match the text, or null when nothing
+ * matches. Keywords match whole words/phrases ("doc" does not match "docker"),
+ * title matches count triple, and ties go to the category listed first.
+ */
+export function categorizeActivity(
+  title: string,
+  description: string,
+  categories: { name: string; keywords: string[] }[],
+): string | null {
+  const titleText = title.toLowerCase();
+  const bodyText = description.toLowerCase();
+  let best: { name: string; score: number } | null = null;
 
   for (const category of categories) {
-    if (category.keywords.some(keyword => text.includes(keyword.toLowerCase()))) {
-      return category.name;
+    let score = 0;
+    for (const raw of category.keywords) {
+      const keyword = raw.trim().toLowerCase();
+      if (!keyword) continue;
+      const pattern = new RegExp(`(^|[^a-z0-9])${escapeRegExp(keyword)}($|[^a-z0-9])`, "i");
+      if (pattern.test(titleText)) score += 3;
+      else if (pattern.test(bodyText)) score += 1;
     }
+    if (score > 0 && (!best || score > best.score)) best = { name: category.name, score };
   }
 
-  return "Other";
+  return best?.name ?? null;
 }
 
 export function getWeekDates(weekNumber: number, year: number): { start: Date; end: Date } {
