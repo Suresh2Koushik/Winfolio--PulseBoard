@@ -227,12 +227,24 @@ export default function Dashboard() {
                 icon={TrendingUp}
                 trend={`${goalStats.atRisk} at risk`}
               />
-              <StatsCard
-                title="Pending Feedback"
-                value={feedbackStats.unacknowledged}
-                icon={MessageSquare}
-                trend={`${feedbackStats.openActionItems} action items`}
-              />
+              {TEAMS_ENABLED ? (
+                <StatsCard
+                  title="Pending Feedback"
+                  value={feedbackStats.unacknowledged}
+                  icon={MessageSquare}
+                  trend={`${feedbackStats.openActionItems} action items`}
+                />
+              ) : (
+                <StatsCard
+                  title="Reflections This Month"
+                  value={checkIns.filter((c) => {
+                    const d = parseISO(c.weekStart);
+                    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+                  }).length}
+                  icon={MessageSquare}
+                  trend="Weekly reflections"
+                />
+              )}
             </div>
 
             {/* Analytics Charts */}

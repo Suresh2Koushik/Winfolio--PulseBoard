@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { storage } from "@/lib/firebase";
 import { ref, uploadBytes, deleteObject } from "firebase/storage";
 import { parseISO } from "date-fns";
+import { ATTACHMENTS_ENABLED } from "@/lib/features";
 import { suggestCategory, getWeekNumber } from "@/utils/categorization";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -342,6 +343,7 @@ export function ActivityForm({ open, onOpenChange, onSave, editActivity }: Activ
               </div>
             </div>
 
+            {ATTACHMENTS_ENABLED && (
             <div className="space-y-2">
               <Label>Attachment (Evidence)</Label>
               <div className="flex items-center gap-3 p-4 border-2 border-dashed rounded-xl bg-muted/20 hover:bg-muted/30 transition-colors">
@@ -374,6 +376,7 @@ export function ActivityForm({ open, onOpenChange, onSave, editActivity }: Activ
                 <input id="attachment-input" type="file" accept={ACCEPTED_FILES} className="hidden" onChange={handleFileSelect} />
               </div>
             </div>
+            )}
           </div>
 
           <div className="flex gap-3 pt-6">
