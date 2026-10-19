@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { initializeFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getStorage, connectStorageEmulator } from 'firebase/storage';
@@ -26,7 +26,7 @@ const app = initializeApp(firebaseConfig);
 const useEmulators = import.meta.env.DEV && import.meta.env.VITE_USE_EMULATORS === 'true';
 
 // App Check proves requests come from this app, not a script reusing the public config.
-// It is on only when a reCAPTCHA v3 site key is configured (see README > App Check).
+// It is on only when a reCAPTCHA (Fraud Defense) key is configured (see README > App Check).
 const appCheckKey = import.meta.env.VITE_APPCHECK_SITE_KEY;
 if (appCheckKey && !useEmulators) {
   if (import.meta.env.DEV) {
@@ -34,7 +34,7 @@ if (appCheckKey && !useEmulators) {
     (self as unknown as { FIREBASE_APPCHECK_DEBUG_TOKEN?: boolean }).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
   }
   initializeAppCheck(app, {
-    provider: new ReCaptchaV3Provider(appCheckKey),
+    provider: new ReCaptchaEnterpriseProvider(appCheckKey),
     isTokenAutoRefreshEnabled: true,
   });
 }

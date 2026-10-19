@@ -72,9 +72,9 @@ The first admin is created by hand once in the Firebase console (see the checkli
 
 App Check makes Firebase accept requests only from this app, not from scripts that copy the public config. The code is ready; it switches on when a site key is set.
 
-1. Create a **reCAPTCHA v3** key at https://www.google.com/recaptcha/admin (domains: `pulseboard--project.web.app`, `pulseboard--project.firebaseapp.com`, `localhost`, plus any custom domain).
-2. Firebase console → **App Check** → Apps → your web app → **reCAPTCHA** → paste the **secret** key → Save.
-3. Put the **site** key in `.env` as `VITE_APPCHECK_SITE_KEY=...`, then build and deploy hosting.
+1. Google Cloud console → **Security → Fraud Defense (reCAPTCHA)** → Create key: platform **Web**, domains `pulseboard--project.web.app` and `pulseboard--project.firebaseapp.com` (plus any custom domain; not `localhost`), **checkbox challenge off** (App Check needs a score-based key). Classic reCAPTCHA v3 keys can no longer be created.
+2. Firebase console → **App Check** → Apps → your web app → **reCAPTCHA Enterprise** → paste the key ID → Save.
+3. Put the key ID in `.env` as `VITE_APPCHECK_SITE_KEY=...`, then build and deploy hosting.
 4. For local `npm run dev`, open the browser console, copy the printed App Check debug token, and add it under App Check → Apps → ⋮ → Manage debug tokens.
 5. Watch App Check → **APIs** metrics for a few days. When nearly all requests show as verified, click **Enforce** for Cloud Firestore, Authentication and (if enabled) Storage.
 
