@@ -117,7 +117,7 @@ test.describe.serial("Winfolio team workflows (v2 features)", () => {
     await alice.getByRole("button", { name: "By quarter" }).click();
     const quarterSelect = alice.getByRole("main").getByRole("combobox").nth(1);
     await chooseOption(alice, quarterSelect, `Q3 ${year}`);
-    await expect(alice.getByRole("heading", { name: "Q3 partner programme" })).toBeVisible();
+    await expect(alice.getByRole("main").getByText("Q3 partner programme")).toBeVisible();
   });
 
   test("employee submits a check-in with optional fields left blank", async () => {

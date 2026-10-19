@@ -13,9 +13,6 @@ export type GoalPriority = 'low' | 'medium' | 'high' | 'critical';
 // Action Item Status
 export type ActionItemStatus = 'open' | 'in_progress' | 'completed' | 'cancelled';
 
-// Change Type for changelog
-export type ChangeType = 'feature' | 'improvement' | 'bugfix' | 'breaking';
-
 // Risk Level
 export type RiskLevel = 'low' | 'medium' | 'high';
 
@@ -117,33 +114,6 @@ export interface ActionItem {
   dueDate?: string;
   status: ActionItemStatus;
   completedAt?: string;
-  createdAt: string;
-}
-
-// AI Performance Summary
-export interface PerformanceSummary {
-  id: string;
-  employeeId: string;
-  employeeName: string;
-  managerId?: string;
-  periodStart: string;
-  periodEnd: string;
-  contributions: string;
-  strengths: string;
-  improvements: string;
-  risks: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// Change Log Entry
-export interface ChangeLog {
-  id: string;
-  version: string;
-  releaseDate: string;
-  changeType: ChangeType;
-  title: string;
-  description: string;
   createdAt: string;
 }
 

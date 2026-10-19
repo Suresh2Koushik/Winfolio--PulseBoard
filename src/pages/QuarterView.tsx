@@ -1,6 +1,6 @@
 import { Activity } from "@/types";
 import { Card } from "@/components/ui/card";
-import { ActivityCard } from "@/components/ActivityCard";
+import { WinRow } from "@/components/app/ui";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -64,7 +64,7 @@ export function QuarterView({ activities, onEdit, onDelete }: QuarterViewProps) 
         </div>
         <div className="flex gap-2">
           <Select value={selectedYear.toString()} onValueChange={(value) => setSelectedYear(Number(value))}>
-            <SelectTrigger className="w-[120px]">
+            <SelectTrigger className="w-[120px]" aria-label="Year">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -76,7 +76,7 @@ export function QuarterView({ activities, onEdit, onDelete }: QuarterViewProps) 
             </SelectContent>
           </Select>
           <Select value={selectedQuarter} onValueChange={setSelectedQuarter}>
-            <SelectTrigger className="w-[120px]">
+            <SelectTrigger className="w-[120px]" aria-label="Quarter">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -108,11 +108,11 @@ export function QuarterView({ activities, onEdit, onDelete }: QuarterViewProps) 
               {monthActivities.length === 0 ? (
                 <p className="text-sm text-muted-foreground italic ml-4">No activities this month</p>
               ) : (
-                <div className="space-y-3">
+                <ul className="space-y-3">
                   {monthActivities.map((activity) => (
-                    <ActivityCard key={activity.id} activity={activity} onEdit={onEdit} onDelete={onDelete} />
+                    <WinRow key={activity.id} win={activity} onEdit={onEdit} onDelete={(w) => onDelete(w.id)} />
                   ))}
-                </div>
+                </ul>
               )}
             </div>
           ))}

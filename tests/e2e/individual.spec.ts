@@ -1,4 +1,4 @@
-import { test, expect, Page, Browser } from "@playwright/test";
+import { test, expect, Page, Browser, BrowserContextOptions } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { resetEmulators, seedAdmin } from "./emulator";
 
@@ -17,15 +17,35 @@ const REFLECTION = "Shipped the checkout fix before the sale";
 
 const appErrors: string[] = [];
 
+// Browser noise, not app errors: WebKit reports the emulator's long-lived Firestore
+// connections as failed "access control checks" when a test navigates away mid-request,
+// and Firefox can log one transient "could not reach backend" while the channel reconnects.
+const isNavigationNoise = (text: string) =>
+  /127\.0\.0\.1:8085\/.* due to access control checks/.test(text) ||
+  /Could not reach Cloud Firestore backend\. Connection failed 1 times/.test(text);
+
 async function newPage(browser: Browser, label: string): Promise<Page> {
-  const page = await (await browser.newContext()).newPage();
-  page.on("pageerror", (err) => appErrors.push(`[${label}] uncaught: ${err.message}`));
+  // Apply the project's device (viewport, touch, user agent) to this hand-made context.
+  const { viewport, isMobile, hasTouch, userAgent, deviceScaleFactor } = test.info().project.use as BrowserContextOptions;
+  const page = await (await browser.newContext({ viewport, isMobile, hasTouch, userAgent, deviceScaleFactor })).newPage();
+  page.on("pageerror", (err) => {
+    if (!isNavigationNoise(err.message)) appErrors.push(`[${label}] uncaught: ${err.message}`);
+  });
   page.on("console", (msg) => {
+    if (isNavigationNoise(msg.text())) return;
     if (msg.type() === "error" && /permission|insufficient|FirebaseError|Uncaught/i.test(msg.text())) {
       appErrors.push(`[${label}] console: ${msg.text().slice(0, 300)}`);
     }
   });
   return page;
+}
+
+const isPhone = (page: Page) => (page.viewportSize()?.width ?? 1280) < 1024;
+
+/** The sidebar on desktop; the slide-out menu on phones. */
+async function openNav(page: Page) {
+  if (isPhone(page)) await page.getByRole("button", { name: "Open menu" }).click();
+  return page.getByRole("complementary").filter({ has: page.getByRole("navigation", { name: "Main" }) }).first();
 }
 
 async function chooseOption(page: Page, trigger: ReturnType<Page["locator"]>, option: string | RegExp) {
@@ -77,6 +97,7 @@ test.describe.serial("Individual mode (v1)", () => {
   });
 
   test("navigation shows Reflections and no team features", async () => {
+    await openNav(page);
     const nav = page.getByRole("navigation", { name: "Main" });
     for (const name of ["Home", "Wins", "Reflections", "Goals", "Reviews"]) {
       await expect(nav.getByRole("link", { name })).toBeVisible();
@@ -92,7 +113,8 @@ test.describe.serial("Individual mode (v1)", () => {
 
   test("log a win with impact and write a reflection", async () => {
     await page.goto("/dashboard");
-    await page.getByRole("complementary").first().getByRole("button", { name: "Log a win" }).click();
+    // First in page order: the sidebar on desktop, the top-bar button on phones.
+    await page.getByRole("button", { name: "Log a win" }).first().click();
     const dialog = page.getByRole("dialog", { name: "Log a win" });
     await dialog.locator("#title").fill(WIN_TITLE);
     await dialog.locator("#impact").fill(WIN_IMPACT);
@@ -188,7 +210,7 @@ test.describe.serial("Individual mode (v1)", () => {
   });
 
   test("settings shows the profile and data tools", async () => {
-    await page.getByRole("complementary").first().getByRole("link", { name: "Settings" }).click();
+    await (await openNav(page)).getByRole("link", { name: "Settings" }).click();
     await expect(page).toHaveURL(/\/settings$/);
     await expect(page.getByRole("heading", { name: "Profile" })).toBeVisible();
     await expect(page.getByText(USER.email)).toBeVisible();

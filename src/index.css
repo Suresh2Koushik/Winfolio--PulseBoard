@@ -1,4 +1,4 @@
-/* Winfolio design system (light theme; dark mode is planned for a later version) */
+/* Winfolio design system: light theme, plus a dark theme for the signed-in app */
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Caveat:wght@600;700&display=swap');
 
 @tailwind base;
@@ -60,6 +60,58 @@
     --sidebar-accent-foreground: 263 69% 30%;
     --sidebar-border: 240 16% 91%;
     --sidebar-ring: 263 69% 42%;
+  }
+
+  /* Dark theme for the signed-in app (the landing page and sign-in stay light).
+     Ink and paper swap places; pastels become deep tints with light ink on top. */
+  .dark {
+    --background: 240 14% 7%;         /* #101016 */
+    --foreground: 240 20% 96%;        /* #F3F3F7 */
+
+    --card: 240 12% 11%;              /* #18181F */
+    --card-foreground: 240 20% 96%;
+
+    --popover: 240 12% 12%;
+    --popover-foreground: 240 20% 96%;
+
+    --primary: 240 20% 96%;
+    --primary-foreground: 240 24% 6%;
+
+    --secondary: 240 10% 16%;
+    --secondary-foreground: 240 20% 96%;
+
+    --muted: 240 10% 15%;
+    --muted-foreground: 240 8% 70%;   /* 7:1 on the card colour */
+
+    --accent: 255 92% 80%;            /* #B9A6FD light violet */
+    --accent-foreground: 240 24% 6%;
+
+    --destructive: 0 84% 66%;
+    --destructive-foreground: 240 24% 6%;
+
+    --border: 240 10% 20%;
+    --input: 240 10% 28%;
+    --ring: 255 92% 80%;
+
+    --success: 142 60% 58%;
+    --warning: 38 92% 62%;
+    --info: 214 95% 74%;
+
+    --pastel-blue: 220 40% 20%;
+    --pastel-blue-ink: 214 100% 85%;
+    --pastel-violet: 258 34% 23%;
+    --pastel-violet-ink: 255 100% 88%;
+    --pastel-pink: 335 34% 21%;
+    --pastel-pink-ink: 340 100% 87%;
+
+    --sidebar-background: 240 12% 10%;
+    --sidebar-foreground: 240 8% 80%;
+    --sidebar-primary: 240 20% 96%;
+    --sidebar-primary-foreground: 240 24% 6%;
+    --sidebar-accent: 258 34% 23%;
+    --sidebar-accent-foreground: 255 100% 88%;
+    --sidebar-border: 240 10% 20%;
+    --sidebar-ring: 255 92% 80%;
   }
 }
 

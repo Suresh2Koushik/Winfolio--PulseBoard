@@ -15,15 +15,17 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  // Pre-bundle libraries that are only loaded on some pages, so the dev server does not
+  // discover them mid-session and reload the page (which also slows the browser tests).
+  optimizeDeps: {
+    include: ["recharts", "xlsx", "jspdf", "jspdf-autotable"],
+  },
   build: {
     rollupOptions: {
       output: {
         // Keep large, rarely-changing libraries in their own cacheable chunks.
         manualChunks: {
-          firebase: ["firebase/app", "firebase/auth", "firebase/firestore", "firebase/storage"],
-          charts: ["recharts"],
-          spreadsheet: ["xlsx"],
-          pdf: ["jspdf", "jspdf-autotable"],
+          firebase: ["firebase/app", "firebase/app-check", "firebase/auth", "firebase/firestore", "firebase/storage"],
         },
       },
     },

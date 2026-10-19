@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Activity, ActivityStatus } from "@/types";
 import { useUserData } from "@/hooks/useUserData";
-import { ActivityCard } from "@/components/ActivityCard";
+import { WinRow } from "@/components/app/ui";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -54,7 +54,7 @@ export function WeeklyView({ activities, onEdit, onDelete }: WeeklyViewProps) {
     <div className="space-y-6">
       <div className="flex flex-wrap gap-3">
         <Select value={selectedWeek} onValueChange={setSelectedWeek}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-[180px]" aria-label="Week">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -67,7 +67,7 @@ export function WeeklyView({ activities, onEdit, onDelete }: WeeklyViewProps) {
         </Select>
 
         <Select value={filterCategory} onValueChange={setFilterCategory}>
-          <SelectTrigger className="w-[200px]">
+          <SelectTrigger className="w-[200px]" aria-label="Category">
             <SelectValue placeholder="Filter by category" />
           </SelectTrigger>
           <SelectContent>
@@ -81,7 +81,7 @@ export function WeeklyView({ activities, onEdit, onDelete }: WeeklyViewProps) {
         </Select>
 
         <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as ActivityStatus | "All")}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-[180px]" aria-label="Status">
             <SelectValue placeholder="Filter by status" />
           </SelectTrigger>
           <SelectContent>
@@ -116,11 +116,11 @@ export function WeeklyView({ activities, onEdit, onDelete }: WeeklyViewProps) {
               {dayActivities.length === 0 ? (
                 <p className="text-sm text-muted-foreground italic">No activities this day</p>
               ) : (
-                <div className="space-y-3">
+                <ul className="space-y-3">
                   {dayActivities.map((activity) => (
-                    <ActivityCard key={activity.id} activity={activity} onEdit={onEdit} onDelete={onDelete} />
+                    <WinRow key={activity.id} win={activity} onEdit={onEdit} onDelete={(w) => onDelete(w.id)} />
                   ))}
-                </div>
+                </ul>
               )}
             </Card>
           );

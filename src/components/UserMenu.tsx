@@ -28,7 +28,6 @@ export function UserMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        aria-label="Account menu"
         className="flex w-full min-w-0 items-center gap-3 rounded-xl p-1.5 text-left transition-colors hover:bg-muted"
       >
         <Avatar className="h-9 w-9">
@@ -40,6 +39,7 @@ export function UserMenu() {
           {userProfile?.team && <span className="block truncate text-xs text-muted-foreground">{userProfile.team}</span>}
         </span>
         <ChevronsUpDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+        <span className="sr-only">Account menu</span>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-60 p-1.5" align="start" side="top">
         <DropdownMenuLabel className="font-normal">

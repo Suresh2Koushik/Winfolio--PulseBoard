@@ -199,7 +199,7 @@ export function ActivityForm({ open, onOpenChange, onSave, editActivity }: Activ
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] max-w-xl overflow-y-auto rounded-2xl border-2 border-foreground p-0 shadow-[6px_6px_0_hsl(var(--foreground))]">
+      <DialogContent className="max-h-[92vh] max-w-xl overflow-y-auto rounded-2xl border-2 border-foreground p-0 shadow-[6px_6px_0_hsl(var(--foreground))] dark:border-border dark:shadow-[6px_6px_0_hsl(var(--pastel-violet))]">
         <DialogHeader className="space-y-1 border-b px-6 pb-4 pt-6 text-left">
           <DialogTitle className="text-2xl font-extrabold tracking-tight">
             {editActivity ? "Edit win" : "Log a win"}

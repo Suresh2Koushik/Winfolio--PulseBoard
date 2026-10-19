@@ -1,11 +1,12 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
+import { applyTheme } from "./lib/theme";
 import "./index.css";
 
-// v1 is light-only. Clear a dark-mode choice saved by the earlier theme toggle.
-document.documentElement.classList.remove("dark");
+// Apply the saved light/dark choice before the first paint to avoid a flash.
+applyTheme(window.location.pathname);
 try {
-  localStorage.removeItem("theme");
+  localStorage.removeItem("theme"); // left over from the old theme toggle
 } catch {
   // Storage can be unavailable (private mode); nothing to clear then.
 }

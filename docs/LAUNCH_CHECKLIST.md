@@ -83,7 +83,7 @@ These points come from the old code's behaviour. I couldn't see the live databas
 | Category rename | Doesn't rename the category on activities already logged. |
 | Monitoring | No error tracking or analytics. |
 | Content Security Policy | Not set. Other security headers are set in `firebase.json`. |
-| App Check | Not enabled. Recommended to limit API abuse. |
+| App Check | Built in, off until a reCAPTCHA v3 site key is set. See README > App Check. |
 | Backups | Firestore point-in-time recovery requires the Blaze plan; not configured. |
 | Dependency audit | 12 advisories remain (no critical). They are in Firestore's Node-only gRPC transport and Tailwind's build tooling, neither of which ships to browsers. |
 

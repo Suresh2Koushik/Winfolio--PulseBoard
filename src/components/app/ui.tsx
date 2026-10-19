@@ -36,7 +36,7 @@ const TINTS = {
   blue: "bg-pastel-blue text-pastel-blue-ink",
   violet: "bg-pastel-violet text-pastel-violet-ink",
   pink: "bg-pastel-pink text-pastel-pink-ink",
-  ink: "bg-foreground text-background",
+  ink: "bg-foreground text-background dark:bg-secondary dark:text-foreground",
 } as const;
 export type Tint = keyof typeof TINTS;
 
@@ -45,7 +45,7 @@ export function StatTile({ label, value, note, tint = "blue" }: { label: string;
   return (
     <div className={cn("flex flex-col gap-1 rounded-2xl p-5", TINTS[tint])}>
       <span className="text-sm font-bold opacity-90">{label}</span>
-      <span className={cn("text-3xl font-extrabold tracking-tight", tint === "ink" ? "text-background" : "text-foreground")}>{value}</span>
+      <span className={cn("text-3xl font-extrabold tracking-tight", tint === "ink" ? "text-background dark:text-foreground" : "text-foreground")}>{value}</span>
       {note && <span className="text-[13px] font-medium opacity-90">{note}</span>}
     </div>
   );

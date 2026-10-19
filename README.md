@@ -33,7 +33,9 @@ npx vite --mode e2e    # uses .env.e2e, which points at the emulators
 | `npm run build` | Production build into `dist/` |
 | `npm run lint` | ESLint |
 | `npm run test:rules` | Security-rules tests (Firestore + Storage) on the emulators |
-| `npm run test:e2e` | Browser tests of employee/manager/admin journeys on the emulators |
+| `npx vitest run` | Unit tests (category suggestions, review periods) |
+| `npm run test:e2e` | Browser tests on the emulators: the v1 journey in Chrome, Firefox, Safari (WebKit) and a phone viewport; an automated WCAG 2.1 AA scan of every screen in light and dark mode; and the v2 team journeys. First run: `npx playwright install chromium firefox webkit` |
+| `npx playwright test --project=individual` | Just one project (run inside `firebase emulators:exec`, as `test:e2e` does) |
 
 ## Roles and data access
 
@@ -65,3 +67,15 @@ npx firebase deploy --only firestore:rules,firestore:indexes,storage,hosting
 ```
 
 The first admin is created by hand once in the Firebase console (see the checklist).
+
+## App Check
+
+App Check makes Firebase accept requests only from this app, not from scripts that copy the public config. The code is ready; it switches on when a site key is set.
+
+1. Create a **reCAPTCHA v3** key at https://www.google.com/recaptcha/admin (domains: `pulseboard--project.web.app`, `pulseboard--project.firebaseapp.com`, `localhost`, plus any custom domain).
+2. Firebase console → **App Check** → Apps → your web app → **reCAPTCHA** → paste the **secret** key → Save.
+3. Put the **site** key in `.env` as `VITE_APPCHECK_SITE_KEY=...`, then build and deploy hosting.
+4. For local `npm run dev`, open the browser console, copy the printed App Check debug token, and add it under App Check → Apps → ⋮ → Manage debug tokens.
+5. Watch App Check → **APIs** metrics for a few days. When nearly all requests show as verified, click **Enforce** for Cloud Firestore, Authentication and (if enabled) Storage.
+
+Leave enforcement off until step 5, or users on an older cached version of the app will be blocked.

@@ -145,7 +145,7 @@ export default function Onboard() {
       <div className="max-w-2xl w-full space-y-8 animate-fade-in">
         <div className="text-center space-y-4">
           <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-xl shadow-primary/20">
-            <Sparkles className="h-10 w-10 text-white" />
+            <Sparkles className="h-10 w-10 text-primary-foreground" />
           </div>
           <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
             Let's get you started
@@ -161,8 +161,8 @@ export default function Onboard() {
             <div key={i} className="flex items-center gap-2">
               <div className={cn(
                 "w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all",
-                i === step ? "bg-primary text-white shadow-lg shadow-primary/30 scale-110" :
-                  i < step ? "bg-success text-white" : "bg-muted text-muted-foreground"
+                i === step ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30 scale-110" :
+                  i < step ? "bg-success text-background" : "bg-muted text-muted-foreground"
               )}>
                 {i < step ? <CheckCircle2 className="h-5 w-5" /> : i}
               </div>

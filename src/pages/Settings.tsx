@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Download, FileSpreadsheet, Upload, UserCog } from "lucide-react";
+import { Download, FileSpreadsheet, Monitor, Moon, Sun, Upload, UserCog } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useActivities } from "@/hooks/useActivities";
@@ -11,6 +11,14 @@ import { CategoryManagement } from "@/components/CategoryManagement";
 import { UploadModal } from "@/components/UploadModal";
 import { Page, PageHeader } from "@/components/app/ui";
 import { JOB_FUNCTIONS } from "@/lib/categories";
+import { ThemePreference, useThemePreference } from "@/lib/theme";
+import { cn } from "@/lib/utils";
+
+const THEMES: { id: ThemePreference; label: string; icon: typeof Sun }[] = [
+  { id: "light", label: "Light", icon: Sun },
+  { id: "dark", label: "Dark", icon: Moon },
+  { id: "system", label: "Match my device", icon: Monitor },
+];
 
 function Section({ id, title, body, children }: { id: string; title: string; body?: string; children: React.ReactNode }) {
   return (
@@ -29,6 +37,7 @@ export default function Settings() {
   const { activities } = useActivities();
   const { categories, teams } = useUserData();
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [theme, setTheme] = useThemePreference();
   const jobFunction = JOB_FUNCTIONS.find((j) => j.id === userProfile?.jobFunction)?.label;
 
   const rows: [string, string | undefined][] = [
@@ -54,6 +63,25 @@ export default function Settings() {
         <Link to="/onboard" className="inline-flex min-h-[40px] items-center gap-2 rounded-full border-2 border-foreground px-4 text-sm font-bold hover:bg-muted">
           <UserCog className="h-4 w-4" aria-hidden="true" /> Edit profile
         </Link>
+      </Section>
+
+      <Section id="appearance-heading" title="Appearance" body="Choose how Winfolio looks. The home page and sign-in always stay light.">
+        <div role="group" aria-labelledby="appearance-heading" className="flex flex-wrap gap-2">
+          {THEMES.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={theme === id}
+              onClick={() => setTheme(id)}
+              className={cn(
+                "inline-flex min-h-[40px] items-center gap-2 rounded-full border-2 px-4 text-sm font-semibold transition-colors",
+                theme === id ? "border-foreground bg-foreground text-background" : "border-border hover:bg-muted",
+              )}
+            >
+              <Icon className="h-4 w-4" aria-hidden="true" /> {label}
+            </button>
+          ))}
+        </div>
       </Section>
 
       <section aria-label="Categories" className="rounded-2xl border bg-card p-5 md:p-6">

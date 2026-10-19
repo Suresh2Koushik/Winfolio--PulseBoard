@@ -48,7 +48,7 @@ export function CelebrationProvider({ children }: { children: ReactNode }) {
         <div className="pointer-events-none fixed inset-x-0 bottom-6 z-[60] flex justify-center px-4" aria-hidden="true">
           <div
             key={current.id}
-            className="relative flex items-center gap-3 rounded-2xl border-2 border-foreground bg-card py-2 pl-2 pr-5 shadow-[4px_4px_0_hsl(var(--foreground))] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-4 motion-safe:duration-300"
+            className="relative flex items-center gap-3 rounded-2xl border-2 border-foreground bg-card py-2 pl-2 pr-5 shadow-[4px_4px_0_hsl(var(--foreground))] dark:border-pastel-violet-ink dark:shadow-[4px_4px_0_hsl(var(--pastel-violet))] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-4 motion-safe:duration-300"
           >
             <Mascot pose={current.pose} className="h-14 w-12" />
             <span className="font-bold">{current.message}</span>

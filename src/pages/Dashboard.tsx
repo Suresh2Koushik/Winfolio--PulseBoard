@@ -116,16 +116,16 @@ export default function Home() {
       </header>
 
       {/* Primary action */}
-      <section className="relative flex flex-wrap items-center justify-between gap-4 overflow-hidden rounded-2xl border-2 border-foreground bg-foreground px-6 py-5 text-background">
+      <section className="relative flex flex-wrap items-center justify-between gap-4 overflow-hidden rounded-2xl border-2 border-foreground bg-foreground px-6 py-5 text-background dark:border-pastel-violet dark:bg-pastel-violet dark:text-foreground">
         <div className="space-y-1">
           <p className="text-xl font-extrabold">Got a win? Save it while it's fresh.</p>
-          <p className="text-sm text-background/75">A couple of sentences will do.</p>
+          <p className="text-sm text-background/75 dark:text-muted-foreground">A couple of sentences will do.</p>
         </div>
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={() => openLogWin()}
-            className="inline-flex min-h-[48px] items-center gap-2 rounded-full bg-background px-6 font-bold text-foreground transition-transform hover:-translate-y-0.5"
+            className="inline-flex min-h-[48px] items-center gap-2 rounded-full bg-background px-6 font-bold text-foreground transition-transform dark:bg-foreground dark:text-background hover:-translate-y-0.5"
           >
             <Plus className="h-4 w-4" aria-hidden="true" /> Log a win
           </button>

@@ -1,7 +1,7 @@
 import { Activity } from "@/types";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ActivityCard } from "@/components/ActivityCard";
+import { WinRow } from "@/components/app/ui";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -101,9 +101,11 @@ export function CategoryView({ activities, onEdit, onDelete }: CategoryViewProps
                   {category.activities.length === 0 ? (
                     <p className="text-sm text-muted-foreground italic py-4">No activities in this category yet</p>
                   ) : (
-                    category.activities.map((activity) => (
-                      <ActivityCard key={activity.id} activity={activity} onEdit={onEdit} onDelete={onDelete} />
-                    ))
+                    <ul className="space-y-3">
+                      {category.activities.map((activity) => (
+                        <WinRow key={activity.id} win={activity} onEdit={onEdit} onDelete={(w) => onDelete(w.id)} />
+                      ))}
+                    </ul>
                   )}
                 </div>
               </CollapsibleContent>

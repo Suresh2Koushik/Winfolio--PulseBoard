@@ -55,7 +55,7 @@ const statusConfig: Record<GoalStatus, { label: string; color: string; bg: strin
 };
 
 const priorityConfig: Record<GoalPriority, { label: string; color: string; bg: string }> = {
-    low: { label: 'Low', color: 'text-slate-600', bg: 'bg-slate-100' },
+    low: { label: 'Low', color: 'text-muted-foreground', bg: 'bg-muted' },
     medium: { label: 'Medium', color: 'text-blue-600', bg: 'bg-blue-100' },
     high: { label: 'High', color: 'text-orange-600', bg: 'bg-orange-100' },
     critical: { label: 'Critical', color: 'text-red-600', bg: 'bg-red-100' },
@@ -202,7 +202,7 @@ export function GoalCard({
                                     size="sm"
                                     className={cn(
                                         "h-8 px-3 text-[10px] font-black rounded-lg transition-all",
-                                        goal.progress === value ? "bg-primary text-white border-primary" : "hover:border-primary hover:text-primary"
+                                        goal.progress === value ? "bg-primary text-primary-foreground border-primary" : "hover:border-primary hover:text-primary"
                                     )}
                                     disabled={goal.progress >= value}
                                     onClick={() => onUpdateProgress(goal.id, value)}
