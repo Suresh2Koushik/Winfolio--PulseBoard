@@ -3,10 +3,11 @@ import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLogWin } from "@/contexts/LogWinContext";
 import { UserMenu } from "@/components/UserMenu";
+import { FeedbackDialog } from "@/components/FeedbackDialog";
 import { WinfolioMark } from "@/components/brand/Brand";
 import { TEAMS_ENABLED } from "@/lib/features";
 import { cn } from "@/lib/utils";
-import { BookOpen, FileText, Home, Menu, Plus, Settings, Shield, Sparkles, Target, Users, X } from "lucide-react";
+import { BookOpen, FileText, Home, Menu, MessageCircle, Plus, Settings, Shield, Sparkles, Target, Users, X } from "lucide-react";
 
 interface NavItem {
   label: string;
@@ -51,6 +52,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { userRole } = useAuth();
   const openLogWin = useLogWin();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const drawerRef = useRef<HTMLElement>(null);
 
   // Close the mobile menu when the page changes.
@@ -85,7 +87,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </nav>
 
       <div className="mt-auto flex flex-col gap-3">
-        <NavItems items={settings} onNavigate={onNavigate} />
+        <div className="flex flex-col gap-1">
+          <button
+            type="button"
+            onClick={() => { onNavigate?.(); setFeedbackOpen(true); }}
+            className="flex min-h-[44px] items-center gap-3 rounded-xl px-3 text-[15px] font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <MessageCircle className="h-5 w-5 shrink-0" aria-hidden="true" />
+            Send feedback
+          </button>
+          <NavItems items={settings} onNavigate={onNavigate} />
+        </div>
         <div className="flex items-center gap-2 border-t pt-3">
           <UserMenu />
         </div>
@@ -145,6 +157,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
         <main className="flex-1">{children}</main>
       </div>
+
+      <FeedbackDialog open={feedbackOpen} onOpenChange={setFeedbackOpen} />
     </div>
   );
 }

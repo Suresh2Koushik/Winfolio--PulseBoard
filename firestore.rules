@@ -365,6 +365,35 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // ---------- app feedback (bug reports and ideas sent from inside Winfolio) ----------
+    // Not the manager feedback above. People can send it; only admins can read it or mark it done.
+    match /appFeedback/{feedbackId} {
+      function validNewFeedback(data) {
+        return data.keys().hasOnly([
+            'userId', 'userEmail', 'userName', 'type', 'message', 'page',
+            'userAgent', 'viewport', 'okToContact', 'status', 'createdAt'])
+          && data.keys().hasAll(['userId', 'type', 'message', 'status', 'createdAt'])
+          && data.userId == uid()
+          && data.type in ['bug', 'idea', 'other']
+          && isString(data.message, 2000) && data.message.size() > 0
+          && isOptString(data, 'userEmail', 320)
+          && isOptString(data, 'userName', 200)
+          && isOptString(data, 'page', 300)
+          && isOptString(data, 'userAgent', 500)
+          && isOptString(data, 'viewport', 40)
+          && (!('okToContact' in data) || data.okToContact is bool)
+          && data.status == 'new';
+      }
+
+      allow create: if signedIn() && validNewFeedback(incoming()) && createdNow();
+      allow read: if isAdmin();
+      // Admins only change the status; the message itself is never edited.
+      allow update: if isAdmin()
+        && changed().hasOnly(['status'])
+        && incoming().status in ['new', 'done'];
+      allow delete: if isAdmin();
+    }
+
     match /changeLogs/{logId} {
       allow read: if signedIn();
       allow write: if isAdmin();

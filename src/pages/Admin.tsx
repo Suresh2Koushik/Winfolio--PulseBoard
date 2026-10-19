@@ -35,6 +35,7 @@ import { format, startOfDay, subDays } from "date-fns";
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
 import { cn } from "@/lib/utils";
 import { exportUserListToCSV } from "@/utils/exportUserData";
+import { FeedbackInbox } from "@/components/admin/FeedbackInbox";
 
 interface UserData {
   id: string;
@@ -252,7 +253,7 @@ export default function Admin() {
             <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
               Admin
             </h1>
-            <p className="text-muted-foreground text-sm">Manage people, roles and reporting lines</p>
+            <p className="text-muted-foreground text-sm">Manage people and roles, and read feedback</p>
           </div>
           <div className="flex gap-2">
             {TEAMS_ENABLED && (
@@ -428,6 +429,8 @@ export default function Admin() {
                 </Table>
               </CardContent>
             </Card>
+
+            <FeedbackInbox />
           </div>
         )}
       </div>

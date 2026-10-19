@@ -474,3 +474,55 @@ describe("platform collections", () => {
     await assertFails(getDocs(collection(asUser(ADMIN), "secrets")));
   });
 });
+
+describe("app feedback (bug reports and ideas)", () => {
+  const validFeedback = (userId: string, extra: Record<string, unknown> = {}) => ({
+    userId,
+    userEmail: `${userId}@example.com`,
+    userName: userId,
+    type: "bug",
+    message: "The review PDF cut off my last win.",
+    page: "/reviews",
+    userAgent: "test-agent",
+    viewport: "390x844",
+    okToContact: true,
+    status: "new",
+    createdAt: serverTimestamp(),
+    ...extra,
+  });
+
+  it("any signed-in user can send feedback as themselves", async () => {
+    await assertSucceeds(addDoc(collection(asUser(EMP), "appFeedback"), validFeedback(EMP)));
+    await assertSucceeds(addDoc(collection(asUser(OTHER), "appFeedback"),
+      { userId: OTHER, type: "idea", message: "Dark mode!", status: "new", createdAt: serverTimestamp() }));
+  });
+
+  it("rejects sign-out, impersonation, bad shapes and pre-set status", async () => {
+    await assertFails(addDoc(collection(anon(), "appFeedback"), validFeedback(EMP)));
+    await assertFails(addDoc(collection(asUser(EMP), "appFeedback"), validFeedback(OTHER)));
+    await assertFails(addDoc(collection(asUser(EMP), "appFeedback"), validFeedback(EMP, { type: "praise" })));
+    await assertFails(addDoc(collection(asUser(EMP), "appFeedback"), validFeedback(EMP, { message: "" })));
+    await assertFails(addDoc(collection(asUser(EMP), "appFeedback"), validFeedback(EMP, { message: "x".repeat(2001) })));
+    await assertFails(addDoc(collection(asUser(EMP), "appFeedback"), validFeedback(EMP, { status: "done" })));
+    await assertFails(addDoc(collection(asUser(EMP), "appFeedback"), validFeedback(EMP, { extra: "field" })));
+    await assertFails(addDoc(collection(asUser(EMP), "appFeedback"), validFeedback(EMP, { createdAt: "2020-01-01" })));
+  });
+
+  it("only admins can read it; senders cannot read even their own", async () => {
+    const ref = await assertSucceeds(addDoc(collection(asUser(EMP), "appFeedback"), validFeedback(EMP)));
+    await assertFails(getDoc(doc(asUser(EMP), "appFeedback", ref.id)));
+    await assertFails(getDocs(collection(asUser(MGR), "appFeedback")));
+    await assertSucceeds(getDoc(doc(asUser(ADMIN), "appFeedback", ref.id)));
+    await assertSucceeds(getDocs(query(collection(asUser(ADMIN), "appFeedback"), orderBy("createdAt", "desc"))));
+  });
+
+  it("admins can only change the status; nobody else can change anything", async () => {
+    const ref = await assertSucceeds(addDoc(collection(asUser(EMP), "appFeedback"), validFeedback(EMP)));
+    await assertFails(updateDoc(doc(asUser(EMP), "appFeedback", ref.id), { status: "done" }));
+    await assertFails(updateDoc(doc(asUser(ADMIN), "appFeedback", ref.id), { message: "edited" }));
+    await assertFails(updateDoc(doc(asUser(ADMIN), "appFeedback", ref.id), { status: "deleted" }));
+    await assertSucceeds(updateDoc(doc(asUser(ADMIN), "appFeedback", ref.id), { status: "done" }));
+    await assertFails(deleteDoc(doc(asUser(EMP), "appFeedback", ref.id)));
+    await assertSucceeds(deleteDoc(doc(asUser(ADMIN), "appFeedback", ref.id)));
+  });
+});

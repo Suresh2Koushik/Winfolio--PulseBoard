@@ -14,6 +14,7 @@ const ADMIN = { email: "owner@winfolio.test", name: "Olu Owner" };
 const WIN_TITLE = "Cut checkout errors for large orders";
 const WIN_IMPACT = "Failed checkouts dropped from daily to none over two weeks";
 const REFLECTION = "Shipped the checkout fix before the sale";
+const FEEDBACK = "Would love a weekly email reminder to log wins";
 
 const appErrors: string[] = [];
 
@@ -232,6 +233,18 @@ test.describe.serial("Individual mode (v1)", () => {
     expect((await download).suggestedFilename()).toMatch(/winfolio-wins/);
   });
 
+  test("send feedback from inside the app", async () => {
+    await page.goto("/wins");
+    await (await openNav(page)).getByRole("button", { name: "Send feedback" }).click();
+    const dialog = page.getByRole("dialog", { name: "Send feedback" });
+    await dialog.getByRole("button", { name: "An idea" }).click();
+    await expect(dialog.getByRole("button", { name: "An idea" })).toHaveAttribute("aria-pressed", "true");
+    await dialog.getByLabel("What would make Winfolio better for you?").fill(FEEDBACK);
+    await dialog.getByRole("button", { name: "Send feedback" }).click();
+    await expect(page.getByText("Thanks! Your feedback is on its way.").first()).toBeVisible();
+    await expect(dialog).toHaveCount(0);
+  });
+
   test("admin sees profiles only, with no team controls", async () => {
     await admin.goto("/auth");
     await admin.locator("#signin-email").fill(ADMIN.email);
@@ -246,6 +259,17 @@ test.describe.serial("Individual mode (v1)", () => {
     await admin.getByRole("combobox", { name: `Role for ${USER.name}` }).click();
     await expect(admin.getByRole("option", { name: "Manager" })).toHaveCount(0);
     await admin.keyboard.press("Escape");
+
+    // Feedback arrives with its context, and can be marked done.
+    const item = admin.getByRole("listitem").filter({ hasText: FEEDBACK });
+    await expect(item).toBeVisible();
+    await expect(item).toContainText("Idea");
+    await expect(item).toContainText(USER.name);
+    await expect(item).toContainText("Page: /wins");
+    await item.getByRole("button", { name: "Mark done" }).click();
+    await expect(admin.getByRole("listitem").filter({ hasText: FEEDBACK })).toHaveCount(0);
+    await admin.getByRole("button", { name: "Done", exact: true }).click();
+    await expect(admin.getByRole("listitem").filter({ hasText: FEEDBACK }).getByRole("button", { name: "Reopen" })).toBeVisible();
   });
 
   test("no permission errors or crashes were logged", async () => {

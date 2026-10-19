@@ -77,6 +77,10 @@ test.describe.serial("Accessibility (WCAG 2.1 AA, automated)", () => {
     await page.getByRole("button", { name: 'Delete "Redesigned the settings page"' }).click();
     await scan(page, "delete confirmation");
     await page.keyboard.press("Escape");
+
+    await page.getByRole("complementary").first().getByRole("button", { name: "Send feedback" }).click();
+    await scan(page, "send feedback dialog");
+    await page.keyboard.press("Escape");
   });
 
   test("app screens in dark mode", async () => {
